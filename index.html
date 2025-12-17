@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>ApiGest - Le Rucher Du Vieux Juigné</title>
 
-    <!-- CONFIGURATION APPLE (Je les laisse comme demandé, ce n'est pas la cause du bug) -->
+    <!-- CONFIGURATION APPLE PWA -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="ApiGest">
@@ -32,7 +32,7 @@
       }
     </script>
     
-    <!-- REACT & TOOLS (Version Globale UMD) -->
+    <!-- REACT & TOOLS (UMD Globals) -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -68,12 +68,12 @@
 <script type="importmap">
 {
   "imports": {
-    "lucide-react": "https://esm.sh/lucide-react@^0.561.0",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
-    "jspdf": "https://esm.sh/jspdf@^3.0.4",
-    "@google/genai": "https://esm.sh/@google/genai@^1.34.0",
     "react": "https://esm.sh/react@^19.2.3",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
     "react/": "https://esm.sh/react@^19.2.3/",
+    "@google/genai": "https://esm.sh/@google/genai@^1.34.0",
+    "lucide-react": "https://esm.sh/lucide-react@^0.561.0",
+    "jspdf": "https://esm.sh/jspdf@^3.0.4",
     "jspdf-autotable": "https://esm.sh/jspdf-autotable@^5.0.2"
   }
 }
@@ -83,7 +83,7 @@
     <div id="root"></div>
 
     <script type="text/babel">
-        // --- 0. VARIABLES GLOBALES ---
+        // --- 0. VARIABLES GLOBALES & UTILITAIRES ---
         const { useState, useEffect, useMemo, useRef } = React;
         const { 
             LayoutDashboard, Settings, MapPin, Plus, Trash2, Save, Wallet, 
@@ -94,11 +94,45 @@
             Tag, Calendar, BookOpen, Droplets, BookOpenText, Layers, Coins, ImagePlus, ArrowDown, ArrowUp, ArrowUpDown, PlusCircle, Loader2
         } = lucideReact;
 
-        // --- 1. SERVICES (Stockage & PDF) ---
+        // Utilitaires de base
         const generateId = () => 'id_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
         const normalizeString = (str) => (!str ? '' : str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '').trim());
-        const getYearFromDateStr = (dateStr) => dateStr ? (dateStr.split('-')[0] || new Date(dateStr).getFullYear()) : new Date().getFullYear();
+        const getYearFromDateStr = (dateStr) => {
+            if (!dateStr) return new Date().getFullYear();
+            const parts = dateStr.split('-');
+            return parts.length > 0 ? parseInt(parts[0]) : new Date(dateStr).getFullYear();
+        };
 
+        // Compression d'image (Critique pour iPad/LocalStorage)
+        const compressImage = (file) => {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.src = event.target.result;
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        const MAX_WIDTH = 600; // Réduit pour optimiser
+                        const scaleSize = MAX_WIDTH / img.width;
+                        if (scaleSize < 1) {
+                            canvas.width = MAX_WIDTH;
+                            canvas.height = img.height * scaleSize;
+                        } else {
+                            canvas.width = img.width;
+                            canvas.height = img.height;
+                        }
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        resolve(canvas.toDataURL('image/jpeg', 0.6)); 
+                    };
+                    img.onerror = (err) => reject(err);
+                };
+                reader.onerror = (err) => reject(err);
+            });
+        };
+
+        // --- 1. SERVICE DE STOCKAGE (LocalStorage) ---
         const STORAGE_KEYS = {
             PROFILE: 'apigest_profile_v3', APIARIES: 'apigest_apiaries_v3', HIVES: 'apigest_hives_v3', 
             MOVEMENTS: 'apigest_movements_v3', INTERVENTIONS: 'apigest_interventions_v3', FEEDINGS: 'apigest_feedings_v3',
@@ -108,7 +142,14 @@
         };
 
         const get = (key, def) => { try { return JSON.parse(localStorage.getItem(key)) || def; } catch { return def; } };
-        const set = (key, val) => { try { localStorage.setItem(key, JSON.stringify(val)); } catch(e) { alert("Mémoire pleine !"); } };
+        const set = (key, val) => { 
+            try { 
+                localStorage.setItem(key, JSON.stringify(val)); 
+            } catch(e) { 
+                alert("Mémoire iPad pleine ! Essayez de supprimer des photos de produits ou d'exporter/nettoyer les données."); 
+                console.error(e);
+            } 
+        };
 
         const createListManager = (key, defaultList = []) => ({
             getAll: () => get(key, defaultList),
@@ -116,6 +157,11 @@
             update: (item) => { const l = get(key, defaultList); const i = l.findIndex(x=>x.id===item.id); if(i>=0)l[i]=item; set(key, l); },
             delete: (id) => set(key, get(key, defaultList).filter(x=>x.id!==id))
         });
+
+        // Données par défaut
+        const DEFAULT_COST_CONFIG = { jar250: 0.3, jar500: 0.45, jar1kg: 0.6, lid: 0.15, label250: 0.1, label500: 0.1, label1kg: 0.12, feedingYearly: 0, treatmentYearly: 0 };
+        const DEFAULT_HONEY_TYPES = ['Toutes fleurs', 'Acacia', 'Printemps', 'Été', 'Châtaignier'];
+        const DEFAULT_FOOD_TYPES = ['Sirop 50/50', 'Candi', 'Sirop stimulation'];
 
         const Storage = {
             generateId,
@@ -136,11 +182,11 @@
             expenses: createListManager(STORAGE_KEYS.EXPENSES),
             clients: createListManager(STORAGE_KEYS.CLIENTS),
             
-            getHoneyTypes: () => get(STORAGE_KEYS.HONEY_TYPES, ['Toutes fleurs', 'Acacia', 'Printemps', 'Été', 'Châtaignier']),
+            getHoneyTypes: () => get(STORAGE_KEYS.HONEY_TYPES, DEFAULT_HONEY_TYPES),
             saveHoneyTypes: (t) => set(STORAGE_KEYS.HONEY_TYPES, t),
-            getFoodTypes: () => get(STORAGE_KEYS.FOOD_TYPES, ['Sirop 50/50', 'Candi', 'Sirop stimulation']),
+            getFoodTypes: () => get(STORAGE_KEYS.FOOD_TYPES, DEFAULT_FOOD_TYPES),
             saveFoodTypes: (t) => set(STORAGE_KEYS.FOOD_TYPES, t),
-            getCostConfig: () => get(STORAGE_KEYS.COST_CONFIG, { jar250: 0.3, jar500: 0.45, jar1kg: 0.6, lid: 0.15, label250: 0.1, label500: 0.1, label1kg: 0.12, feedingYearly: 0, treatmentYearly: 0 }),
+            getCostConfig: () => get(STORAGE_KEYS.COST_CONFIG, DEFAULT_COST_CONFIG),
             saveCostConfig: (c) => set(STORAGE_KEYS.COST_CONFIG, c),
 
             exportAllData: () => {
@@ -161,14 +207,18 @@
             }
         };
 
+        // --- 2. SERVICE PDF ---
         const PDFService = {
             generateDoc: (title, start, end) => {
                 const { jsPDF } = window.jspdf;
                 const doc = new jsPDF();
                 const profile = Storage.getProfile();
+                
+                // Header
                 doc.setFontSize(18);
                 doc.setTextColor(42, 51, 30);
                 doc.text(profile.companyName || "Apiculture", 14, 20);
+                
                 doc.setFontSize(10);
                 doc.setTextColor(100);
                 let y = 26;
@@ -176,22 +226,91 @@
                 if(profile.address) y+=6;
                 doc.text(`NAPI: ${profile.napi} | SIRET: ${profile.siret}`, 14, y);
                 y+=6;
-                doc.setDrawColor(244, 206, 94);
+                
+                doc.setDrawColor(244, 206, 94); // Yellow line
                 doc.line(14, y+4, 196, y+4);
+                
                 doc.setFontSize(14);
                 doc.setTextColor(0);
-                doc.text(`${title} (${new Date(start).toLocaleDateString()} - ${new Date(end).toLocaleDateString()})`, 14, y+14);
-                return {doc, y: y+20};
+                const startStr = new Date(start).toLocaleDateString('fr-FR');
+                const endStr = new Date(end).toLocaleDateString('fr-FR');
+                doc.text(`${title} (${startStr} - ${endStr})`, 14, y+14);
+                
+                return {doc, y: y+24};
             },
+            
+            // Registre d'élevage
+            generateBreedingRegisterPDF: (s, e) => {
+                const {doc, y} = PDFService.generateDoc("Registre d'Élevage", s, e);
+                const filter = (arr) => arr.filter(i => i.date >= s && i.date <= e);
+                
+                // Traitements
+                doc.setFontSize(12); doc.text("1. Traitements Sanitaires", 14, y);
+                doc.autoTable({
+                    startY: y+4,
+                    head: [['Date', 'Médicament', 'N° Lot', 'Qté']],
+                    body: filter(Storage.interventions.getAll()).map(i => [new Date(i.date).toLocaleDateString(), i.drugName, i.batchNumber, i.quantity]),
+                    theme:'grid', headStyles:{fillColor:[220, 38, 38]}
+                });
+                
+                // Mouvements
+                let finalY = doc.lastAutoTable.finalY + 10;
+                doc.text("2. Mouvements", 14, finalY);
+                doc.autoTable({
+                    startY: finalY+4,
+                    head: [['Date', 'Type', 'Détail', 'Qté']],
+                    body: filter(Storage.movements.getAll()).map(m => [new Date(m.date).toLocaleDateString(), m.type, m.description, m.quantity]),
+                    theme:'grid', headStyles:{fillColor:[37, 99, 235]}
+                });
+                
+                doc.save('registre_elevage.pdf');
+            },
+            
+            // Cahier Miellerie
+            generateHoneyTraceabilityPDF: (s, e) => {
+                const {doc, y} = PDFService.generateDoc("Cahier de Miellerie", s, e);
+                const filter = (arr) => arr.filter(i => i.date >= s && i.date <= e);
+                
+                // Récoltes
+                doc.setFontSize(12); doc.text("1. Récoltes (Vrac)", 14, y);
+                doc.autoTable({
+                    startY: y+4,
+                    head: [['Date', 'Miel', 'Poids', 'Lot Vrac']],
+                    body: filter(Storage.harvests.getAll()).map(h => [new Date(h.date).toLocaleDateString(), h.honeyType, h.quantityKg + 'kg', h.batchId]),
+                    theme:'grid', headStyles:{fillColor:[217, 119, 6]}
+                });
+                
+                // Pots
+                let finalY = doc.lastAutoTable.finalY + 10;
+                doc.text("2. Mises en Pot", 14, finalY);
+                doc.autoTable({
+                    startY: finalY+4,
+                    head: [['Date', 'Lot Final', 'Qté x Format']],
+                    body: filter(Storage.packaging.getAll()).map(p => [new Date(p.date).toLocaleDateString(), p.finalBatchNumber, `${p.quantityPots} x ${p.potSize}`]),
+                    theme:'grid', headStyles:{fillColor:[217, 119, 6]}
+                });
+                doc.save('miellerie.pdf');
+            },
+
+            // Ventes
             generateSalesPDF: (s, e) => {
                 const {doc, y} = PDFService.generateDoc("Livre de Recettes", s, e);
-                const sales = Storage.sales.getAll().filter(i => i.date >= s && i.date <= e);
-                doc.autoTable({ startY: y, head: [['Date', 'Produit', 'Prix', 'Paiement']], body: sales.map(x => [x.date, x.productName, x.totalPrice + '€', x.paymentMethod]), theme:'grid', headStyles:{fillColor:[94, 112, 72]} });
+                const sales = Storage.sales.getAll().filter(i => i.date >= s && i.date <= e).sort((a,b)=>new Date(a.date)-new Date(b.date));
+                
+                doc.autoTable({ 
+                    startY: y, 
+                    head: [['Date', 'Client/Lieu', 'Produit', 'Qté', 'Total']], 
+                    body: sales.map(x => [new Date(x.date).toLocaleDateString(), x.buyerName, x.productName || x.finalBatchNumber, x.quantitySold, x.totalPrice.toFixed(2) + '€']), 
+                    theme:'grid', 
+                    headStyles:{fillColor:[22, 163, 74]},
+                    foot: [['', '', '', 'TOTAL', sales.reduce((a,b)=>a+(b.totalPrice||0),0).toFixed(2)+'€']]
+                });
                 doc.save('ventes.pdf');
             }
         };
 
-        // --- 2. COMPOSANTS UI ---
+        // --- 3. COMPOSANTS UI PARTAGÉS ---
+        
         const HiveIcon = ({ size = 24, className = "" }) => (
             <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
                 <rect x="3" y="3" width="18" height="4" rx="1" />
@@ -202,6 +321,26 @@
             </svg>
         );
 
+        const ConfirmModal = ({ isOpen, title, message, onConfirm, onCancel }) => {
+            if (!isOpen) return null;
+            return (
+                <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4">
+                    <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full p-6 animate-in fade-in zoom-in duration-200">
+                        <div className="flex items-center gap-3 text-red-600 mb-4">
+                            <AlertTriangle size={28} />
+                            <h3 className="text-xl font-bold">{title}</h3>
+                        </div>
+                        <p className="text-gray-600 mb-6">{message}</p>
+                        <div className="flex gap-3 justify-end">
+                            <button onClick={onCancel} className="px-4 py-2 text-gray-600 font-medium hover:bg-gray-100 rounded-lg">Annuler</button>
+                            <button onClick={onConfirm} className="px-4 py-2 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700 shadow-sm">Confirmer</button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // Charts
         const SimpleDonutChart = ({ data }) => {
             const total = data.reduce((sum, item) => sum + item.value, 0);
             if (total === 0) return <div className="h-40 flex items-center justify-center text-gray-400 text-xs">Pas de données</div>;
@@ -248,9 +387,9 @@
             );
         };
 
-        // --- 3. MODULES METIERS ---
+        // --- 4. MODULES FONCTIONNELS ---
 
-        // >>> CLIENTS <<<
+        // >>> MODULE CLIENTS <<<
         const ClientManager = () => {
             const [clients, setClients] = useState([]);
             const [sales, setSales] = useState([]);
@@ -279,7 +418,7 @@
                         <h2 className="text-2xl font-bold flex items-center gap-2"><Users /> Gestion des Clients</h2>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 md:col-span-1 h-fit">
+                        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 md:col-span-1 h-fit sticky top-4">
                             <h3 className="font-bold text-gray-800 mb-4">{editingId ? "Modifier" : "Nouveau"}</h3>
                             <input type="text" placeholder="Nom *" className="w-full border p-2 rounded mb-2" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})}/>
                             <input type="text" placeholder="Tel" className="w-full border p-2 rounded mb-2" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})}/>
@@ -308,7 +447,7 @@
             );
         };
 
-        // >>> DEPENSES <<<
+        // >>> MODULE DEPENSES <<<
         const Expenses = () => {
             const [expenses, setExpenses] = useState([]);
             const [newExpense, setNewExpense] = useState({ date: new Date().toISOString().split('T')[0], store: '', description: '', category: 'MATERIEL', amount: '' });
@@ -349,46 +488,63 @@
             );
         };
 
-        // >>> ELEVAGE <<<
+        // >>> MODULE ELEVAGE <<<
         const BreedingRegister = () => {
             const [activeTab, setActiveTab] = useState('APIARY');
             const [apiaries, setApiaries] = useState([]);
             const [hives, setHives] = useState([]);
             const [interventions, setInterventions] = useState([]);
+            const [feedings, setFeedings] = useState([]);
+            const [movements, setMovements] = useState([]);
+            const [newApiary, setNewApiary] = useState({name:'', location:''});
+            const [newHive, setNewHive] = useState({name:'', count:1, apiaryId:''});
             const [newInt, setNewInt] = useState({date: new Date().toISOString().split('T')[0], drugName: '', batchNumber: '', quantity: '', apiaryId: ''});
+            const [newFeeding, setNewFeeding] = useState({date: new Date().toISOString().split('T')[0], foodType:'', quantity:'', apiaryId:''});
+            const [newMov, setNewMov] = useState({date: new Date().toISOString().split('T')[0], type:'Transhumance', originId:'', destId:'', quantity:1});
 
-            useEffect(() => { 
+            useEffect(() => { refreshData(); }, []);
+            const refreshData = () => {
                 setApiaries(Storage.getApiaries()); 
                 setHives(Storage.hives.getAll()); 
                 setInterventions(Storage.interventions.getAll());
-            }, []);
-
-            const addIntervention = () => {
-                if(!newInt.drugName) return;
-                Storage.interventions.add({...newInt, id:Storage.generateId()});
-                setInterventions(Storage.interventions.getAll());
-                setNewInt({...newInt, drugName:'', batchNumber:''});
+                setFeedings(Storage.feedings.getAll());
+                setMovements(Storage.movements.getAll());
             };
 
             return (
                 <div className="space-y-6">
-                    <div className="flex gap-2 mb-4 overflow-x-auto">
-                        {[{id:'APIARY',label:'Ruchers',icon:MapPin}, {id:'SANITARY',label:'Soins',icon:Syringe}].map(t => (
-                            <button key={t.id} onClick={()=>setActiveTab(t.id)} className={`flex items-center gap-2 px-4 py-2 rounded-full font-bold border ${activeTab===t.id?'bg-honey-600 text-white':'bg-white'}`}>
+                    <div className="flex gap-2 mb-4 overflow-x-auto no-scrollbar">
+                        {[{id:'APIARY',label:'Ruchers',icon:MapPin}, {id:'SANITARY',label:'Soins',icon:Syringe}, {id:'FEEDING',label:'Nourrissement',icon:Utensils}, {id:'MOVEMENTS',label:'Mouvements',icon:Truck}].map(t => (
+                            <button key={t.id} onClick={()=>setActiveTab(t.id)} className={`flex items-center gap-2 px-4 py-2 rounded-full font-bold border whitespace-nowrap ${activeTab===t.id?'bg-honey-600 text-white':'bg-white'}`}>
                                 <t.icon size={16}/> {t.label}
                             </button>
                         ))}
                     </div>
+                    
                     {activeTab === 'APIARY' && (
-                        <div className="space-y-2">
-                            {apiaries.map(apiary => (
-                                <div key={apiary.id} className="bg-white border rounded-xl p-4">
-                                    <h3 className="font-bold text-lg">{apiary.name}</h3>
-                                    <p className="text-gray-500 text-xs mb-2">{apiary.location}</p>
-                                    <div className="flex flex-wrap gap-2">
+                        <div>
+                             <div className="bg-white p-4 rounded-xl border mb-4 flex gap-2">
+                                <input placeholder="Nom Rucher" className="border p-2 rounded flex-1" value={newApiary.name} onChange={e=>setNewApiary({...newApiary,name:e.target.value})}/>
+                                <button onClick={()=>{ if(newApiary.name){Storage.saveApiary({...newApiary,id:Storage.generateId()}); setNewApiary({name:'',location:''}); refreshData();} }} className="bg-honey-500 text-white px-4 rounded"><Plus/></button>
+                             </div>
+                             {apiaries.map(apiary => (
+                                <div key={apiary.id} className="bg-white border rounded-xl p-4 mb-2">
+                                    <div className="flex justify-between">
+                                        <h3 className="font-bold text-lg">{apiary.name}</h3>
+                                        <button onClick={()=>{ if(confirm('Supprimer?')) {Storage.deleteApiary(apiary.id); refreshData();} }}><Trash2 size={16} className="text-gray-300"/></button>
+                                    </div>
+                                    <div className="flex gap-2 mt-2 items-center">
+                                        <input placeholder="Ajouter ruche..." className="border p-1 rounded text-sm" id={`hive_${apiary.id}`}/>
+                                        <button onClick={()=>{
+                                            const name = document.getElementById(`hive_${apiary.id}`).value;
+                                            if(name) { Storage.hives.add({id:Storage.generateId(), name, apiaryId:apiary.id}); refreshData(); document.getElementById(`hive_${apiary.id}`).value='';}
+                                        }} className="bg-blue-100 text-blue-600 px-2 rounded text-sm font-bold">+</button>
+                                    </div>
+                                    <div className="flex flex-wrap gap-2 mt-3">
                                         {hives.filter(h=>h.apiaryId===apiary.id).map(hive => (
                                             <span key={hive.id} className="px-2 py-1 bg-honey-50 border border-honey-100 rounded text-xs font-bold text-honey-700 flex items-center gap-1">
                                                 <HiveIcon size={12}/> {hive.name}
+                                                <button onClick={()=>{Storage.hives.delete(hive.id); refreshData();}} className="ml-1 text-red-300">x</button>
                                             </span>
                                         ))}
                                     </div>
@@ -396,46 +552,75 @@
                             ))}
                         </div>
                     )}
+                    
                     {activeTab === 'SANITARY' && (
                         <div>
-                             <div className="bg-white p-4 rounded-xl border mb-4">
+                             <div className="bg-white p-4 rounded-xl border mb-4 shadow-sm">
                                  <h3 className="font-bold mb-2">Nouveau Traitement</h3>
-                                 <input type="date" className="border p-2 rounded w-full mb-2" value={newInt.date} onChange={e=>setNewInt({...newInt, date:e.target.value})}/>
-                                 <select className="border p-2 rounded w-full mb-2" value={newInt.drugName} onChange={e=>setNewInt({...newInt, drugName:e.target.value})}>
-                                     <option value="">Médicament...</option>
-                                     {['Apivar', 'Apitraz', 'Acide Oxalique'].map(t=><option key={t} value={t}>{t}</option>)}
-                                 </select>
-                                 <input type="text" placeholder="N° Lot (Obligatoire)" className="border p-2 rounded w-full mb-2" value={newInt.batchNumber} onChange={e=>setNewInt({...newInt, batchNumber:e.target.value})}/>
-                                 <button onClick={addIntervention} className="w-full bg-red-600 text-white p-2 rounded font-bold">Enregistrer</button>
+                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                    <input type="date" className="border p-2 rounded" value={newInt.date} onChange={e=>setNewInt({...newInt, date:e.target.value})}/>
+                                    <select className="border p-2 rounded" value={newInt.apiaryId} onChange={e=>setNewInt({...newInt, apiaryId:e.target.value})}>
+                                        <option value="">Choisir Rucher...</option>
+                                        {apiaries.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}
+                                    </select>
+                                    <input type="text" placeholder="Médicament (ex: Apivar)" className="border p-2 rounded" value={newInt.drugName} onChange={e=>setNewInt({...newInt, drugName:e.target.value})}/>
+                                    <input type="text" placeholder="N° Lot (OBLIGATOIRE)" className="border-2 border-red-200 p-2 rounded" value={newInt.batchNumber} onChange={e=>setNewInt({...newInt, batchNumber:e.target.value})}/>
+                                 </div>
+                                 <button onClick={()=>{ if(newInt.drugName && newInt.batchNumber){Storage.interventions.add({...newInt, id:Storage.generateId()}); refreshData();} }} className="w-full bg-red-600 text-white p-2 rounded font-bold mt-2">Enregistrer Traitement</button>
                              </div>
                              <div className="space-y-2">
                                  {interventions.map(i => (
-                                     <div key={i.id} className="p-3 bg-white border rounded">
-                                         <div className="font-bold">{i.drugName}</div>
+                                     <div key={i.id} className="p-3 bg-white border rounded shadow-sm">
+                                         <div className="font-bold">{i.drugName} <span className="text-gray-400 font-normal">({apiaries.find(a=>a.id===i.apiaryId)?.name || '?'})</span></div>
                                          <div className="text-xs text-gray-500">Lot: {i.batchNumber} | {new Date(i.date).toLocaleDateString()}</div>
-                                         <button onClick={()=>{Storage.interventions.delete(i.id); setInterventions(Storage.interventions.getAll());}} className="text-red-400 text-xs mt-1">Supprimer</button>
                                      </div>
                                  ))}
                              </div>
+                        </div>
+                    )}
+
+                    {activeTab === 'FEEDING' && (
+                        <div>
+                             <div className="bg-white p-4 rounded-xl border mb-4 shadow-sm">
+                                 <h3 className="font-bold mb-2">Nourrissement</h3>
+                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                    <input type="date" className="border p-2 rounded" value={newFeeding.date} onChange={e=>setNewFeeding({...newFeeding, date:e.target.value})}/>
+                                    <select className="border p-2 rounded" value={newFeeding.apiaryId} onChange={e=>setNewFeeding({...newFeeding, apiaryId:e.target.value})}>
+                                        <option value="">Choisir Rucher...</option>
+                                        {apiaries.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}
+                                    </select>
+                                    <input type="text" placeholder="Type (Sirop, Candi...)" className="border p-2 rounded" value={newFeeding.foodType} onChange={e=>setNewFeeding({...newFeeding, foodType:e.target.value})}/>
+                                    <input type="text" placeholder="Quantité" className="border p-2 rounded" value={newFeeding.quantity} onChange={e=>setNewFeeding({...newFeeding, quantity:e.target.value})}/>
+                                 </div>
+                                 <button onClick={()=>{ if(newFeeding.foodType){Storage.feedings.add({...newFeeding, id:Storage.generateId()}); refreshData();} }} className="w-full bg-amber-500 text-white p-2 rounded font-bold mt-2">Enregistrer</button>
+                             </div>
+                             {feedings.map(f => (
+                                 <div key={f.id} className="p-3 bg-white border rounded shadow-sm mb-2">
+                                     <div className="font-bold">{f.foodType} - {f.quantity}</div>
+                                     <div className="text-xs text-gray-500">{apiaries.find(a=>a.id===f.apiaryId)?.name} | {new Date(f.date).toLocaleDateString()}</div>
+                                 </div>
+                             ))}
                         </div>
                     )}
                 </div>
             );
         };
 
-        // >>> MIELLERIE & CAISSE <<<
+        // >>> MODULE MIELLERIE & CAISSE (Logic Integrated from HoneyTraceability) <<<
         const HoneyTraceability = ({ initialTab }) => {
             const [activeTab, setActiveTab] = useState(initialTab || 'POS');
             const [products, setProducts] = useState([]);
             const [cart, setCart] = useState([]);
-            const [animatingItems, setAnimatingItems] = useState([]);
             const [packagings, setPackagings] = useState([]);
-            const [honeyTypes, setHoneyTypes] = useState([]);
-            
+            const [harvests, setHarvests] = useState([]);
+            const [animatingItems, setAnimatingItems] = useState([]);
+            const [newPackage, setNewPackage] = useState({date:new Date().toISOString().split('T')[0], finalBatchNumber:'', quantityPots:0, potSize:'500g', honeyType:''});
+            const [newHarvest, setNewHarvest] = useState({date:new Date().toISOString().split('T')[0], honeyType:'', quantityKg:0});
+
             useEffect(() => { 
                 setProducts(Storage.products.getAll()); 
                 setPackagings(Storage.packaging.getAll());
-                setHoneyTypes(Storage.getHoneyTypes());
+                setHarvests(Storage.harvests.getAll());
                 setActiveTab(initialTab || 'POS'); 
             }, [initialTab]);
 
@@ -460,7 +645,7 @@
                         quantitySold: item.quantity,
                         totalPrice: item.quantity * item.product.price,
                         paymentMethod: 'ESPECES',
-                        finalBatchNumber: item.product.currentBatchId ? 'LOT-AUTO' : 'VRAC'
+                        finalBatchNumber: item.product.currentBatchId ? Storage.packaging.getAll().find(p=>p.id===item.product.currentBatchId)?.finalBatchNumber : 'VRAC'
                     });
                 });
                 setCart([]);
@@ -469,8 +654,8 @@
 
             return (
                 <div className="h-full">
-                     <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
-                        {[{id:'POS', label:'Caisse', icon:ShoppingCart}, {id:'PRODUCTS', label:'Produits', icon:Store}, {id:'PACKAGING', label:'Mise en pot', icon:Package}].map(t => (
+                     <div className="flex gap-2 mb-6 overflow-x-auto pb-2 no-scrollbar">
+                        {[{id:'POS', label:'Caisse', icon:ShoppingCart}, {id:'PRODUCTS', label:'Produits', icon:Store}, {id:'PACKAGING', label:'Mise en pot', icon:Package}, {id:'HARVEST', label:'Récolte', icon:Archive}].map(t => (
                             <button key={t.id} onClick={() => setActiveTab(t.id)} className={`flex items-center gap-2 px-5 py-2 rounded-full text-sm font-bold tracking-wide transition shadow-sm ${activeTab===t.id ? 'bg-rucher-yellow text-rucher-dark' : 'bg-white text-gray-500 border border-gray-200'}`}>
                                 <t.icon size={16}/> {t.label}
                             </button>
@@ -487,8 +672,8 @@
                                              {animatingItems.filter(i => i.id === p.id).map(anim => (
                                                 <div key={anim.key} className="absolute inset-0 flex items-center justify-center pointer-events-none z-50 animate-fly-cart"><div className="text-4xl filter drop-shadow-lg transform -scale-x-100">🐝</div></div>
                                              ))}
-                                             <div className="h-24 bg-rucher-bg rounded mb-3 flex items-center justify-center relative">
-                                                 {p.imageUrl ? <img src={p.imageUrl} className="h-full object-contain"/> : <Store size={32} className="text-rucher-green opacity-30"/>}
+                                             <div className="h-24 bg-rucher-bg rounded mb-3 flex items-center justify-center relative overflow-hidden">
+                                                 {p.imageUrl ? <img src={p.imageUrl} className="w-full h-full object-cover"/> : <Store size={32} className="text-rucher-green opacity-30"/>}
                                                  <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition text-rucher-yellow"><Plus size={20}/></div>
                                              </div>
                                              <div className="font-bold text-rucher-dark truncate">{p.name}</div>
@@ -525,50 +710,92 @@
                      {activeTab === 'PRODUCTS' && (
                          <div className="bg-white p-6 rounded-xl shadow-sm">
                              <h2 className="font-serif text-2xl mb-4">Produits</h2>
-                             <div className="flex gap-2">
-                                 <input id="newProdName" placeholder="Nom (ex: Miel Acacia)" className="border p-2 rounded flex-1"/>
-                                 <input id="newProdPrice" placeholder="Prix" type="number" className="border p-2 rounded w-24"/>
+                             <div className="flex flex-col gap-2 mb-4">
+                                 <input id="newProdName" placeholder="Nom (ex: Miel Acacia)" className="border p-2 rounded"/>
+                                 <div className="flex gap-2">
+                                    <input id="newProdPrice" placeholder="Prix" type="number" className="border p-2 rounded w-24"/>
+                                    <input type="file" id="prodImg" className="hidden" onChange={(e)=>{
+                                        if(e.target.files[0]) compressImage(e.target.files[0]).then(res => document.getElementById('preview').src = res);
+                                    }}/>
+                                    <label htmlFor="prodImg" className="border p-2 rounded cursor-pointer flex items-center gap-2"><ImagePlus size={18}/> Photo</label>
+                                    <img id="preview" className="h-10 w-10 object-cover rounded bg-gray-100"/>
+                                 </div>
                                  <button onClick={() => {
                                      const name = document.getElementById('newProdName').value;
                                      const price = parseFloat(document.getElementById('newProdPrice').value);
+                                     const img = document.getElementById('preview').src;
                                      if(name && price) {
-                                         Storage.products.add({id:Storage.generateId(), name, price, potSize:'500g'});
+                                         Storage.products.add({id:Storage.generateId(), name, price, potSize:'500g', imageUrl: img.startsWith('data') ? img : null});
                                          setProducts(Storage.products.getAll());
                                      }
-                                 }} className="bg-rucher-yellow px-4 rounded font-bold text-rucher-dark">Ajouter</button>
+                                 }} className="bg-rucher-yellow px-4 py-2 rounded font-bold text-rucher-dark">Ajouter</button>
                              </div>
-                             <div className="mt-4 space-y-2">
-                                 {products.map(p => <div key={p.id} className="p-2 border-b flex justify-between"><span>{p.name}</span><span className="font-bold">{p.price}€</span></div>)}
+                             <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                 {products.map(p => (
+                                    <div key={p.id} className="p-2 border rounded flex gap-2 items-center">
+                                        <div className="h-12 w-12 bg-gray-100 rounded overflow-hidden">
+                                            {p.imageUrl && <img src={p.imageUrl} className="h-full w-full object-cover"/>}
+                                        </div>
+                                        <div>
+                                            <div className="font-bold">{p.name}</div>
+                                            <div className="text-xs">{p.price}€</div>
+                                        </div>
+                                        <button onClick={()=>{Storage.products.delete(p.id); setProducts(Storage.products.getAll());}} className="ml-auto text-red-400"><Trash2/></button>
+                                    </div>
+                                ))}
                              </div>
                          </div>
                      )}
 
                      {activeTab === 'PACKAGING' && (
                         <div className="bg-white p-6 rounded-xl shadow-sm">
-                            <h2 className="font-serif text-2xl mb-4">Créer un Lot</h2>
-                            <p className="text-sm text-gray-500 mb-4">Générez un numéro de lot pour la traçabilité.</p>
-                            <input className="w-full border p-2 rounded mb-2" placeholder="Numéro de Lot (ex: 2025-01-AC)" id="batchNum"/>
-                            <input className="w-full border p-2 rounded mb-2" type="number" placeholder="Quantité de pots" id="batchQty"/>
-                            <button onClick={()=>{
-                                const num = document.getElementById('batchNum').value;
-                                const qty = document.getElementById('batchQty').value;
-                                if(num && qty) {
-                                    Storage.packaging.add({id:Storage.generateId(), date: new Date().toISOString(), finalBatchNumber: num, quantityPots: qty, potSize: '500g'});
-                                    setPackagings(Storage.packaging.getAll());
-                                    alert('Lot créé');
-                                }
-                            }} className="w-full bg-amber-500 text-white p-2 rounded font-bold">Enregistrer Mise en Pot</button>
-                            
-                            <div className="mt-4 space-y-2">
-                                {packagings.map(p => <div key={p.id} className="text-sm p-2 bg-gray-50 border rounded flex justify-between"><span>Lot: {p.finalBatchNumber}</span><span>{p.quantityPots} pots</span></div>)}
+                            <h2 className="font-serif text-2xl mb-4">Mise en Pot (Lots)</h2>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 bg-amber-50 p-4 rounded-xl">
+                                <input className="border p-2 rounded" placeholder="Numéro de Lot (ex: 2025-01-AC)" value={newPackage.finalBatchNumber} onChange={e=>setNewPackage({...newPackage, finalBatchNumber:e.target.value})}/>
+                                <input className="border p-2 rounded" type="number" placeholder="Quantité de pots" value={newPackage.quantityPots} onChange={e=>setNewPackage({...newPackage, quantityPots:e.target.value})}/>
+                                <select className="border p-2 rounded bg-white" value={newPackage.potSize} onChange={e=>setNewPackage({...newPackage, potSize:e.target.value})}>
+                                    {['250g','500g','1kg'].map(s=><option key={s} value={s}>{s}</option>)}
+                                </select>
+                                <button onClick={()=>{
+                                    if(newPackage.finalBatchNumber && newPackage.quantityPots) {
+                                        Storage.packaging.add({...newPackage, id:Storage.generateId()});
+                                        setPackagings(Storage.packaging.getAll());
+                                        alert('Lot créé');
+                                    }
+                                }} className="w-full bg-amber-500 text-white p-2 rounded font-bold md:col-span-2">Enregistrer</button>
+                            </div>
+                            <div className="space-y-2">
+                                {packagings.map(p => <div key={p.id} className="text-sm p-3 bg-white border rounded flex justify-between"><span>Lot: <b>{p.finalBatchNumber}</b></span><span>{p.quantityPots} x {p.potSize}</span></div>)}
                             </div>
                         </div>
+                     )}
+
+                     {activeTab === 'HARVEST' && (
+                         <div className="bg-white p-6 rounded-xl shadow-sm">
+                             <h2 className="font-serif text-2xl mb-4">Récoltes (Vrac)</h2>
+                             <div className="flex gap-2 mb-4">
+                                 <input className="border p-2 rounded flex-1" placeholder="Type Miel (ex: Acacia)" value={newHarvest.honeyType} onChange={e=>setNewHarvest({...newHarvest, honeyType:e.target.value})}/>
+                                 <input className="border p-2 rounded w-24" type="number" placeholder="Kg" value={newHarvest.quantityKg} onChange={e=>setNewHarvest({...newHarvest, quantityKg:e.target.value})}/>
+                                 <button onClick={()=>{
+                                     if(newHarvest.honeyType && newHarvest.quantityKg){
+                                         Storage.harvests.add({...newHarvest, id:Storage.generateId(), batchId:'VRAC-'+Date.now()});
+                                         setHarvests(Storage.harvests.getAll());
+                                     }
+                                 }} className="bg-amber-600 text-white px-4 rounded font-bold">Ajouter</button>
+                             </div>
+                             {harvests.map(h => (
+                                 <div key={h.id} className="p-3 border-b flex justify-between">
+                                     <span>{h.honeyType}</span>
+                                     <span className="font-bold">{h.quantityKg} kg</span>
+                                 </div>
+                             ))}
+                         </div>
                      )}
                 </div>
             );
         };
 
-        // --- 4. APP PRINCIPALE ---
+        // --- 5. APPLICATION PRINCIPALE ---
         const App = () => {
             const [view, setView] = useState('DASHBOARD');
             const [honeyTab, setHoneyTab] = useState('POS');
@@ -610,8 +837,9 @@
                         </div>
                     </nav>
 
-                    <main className="flex-1 pb-24 md:pb-8 p-4 md:p-8 overflow-y-auto h-screen relative">
+                    <main className="flex-1 pb-24 md:pb-8 p-4 md:p-8 overflow-y-auto h-screen relative bg-gray-50">
                         <div className="max-w-6xl mx-auto">
+                            {/* HEADER MOBILE */}
                             <div className="md:hidden flex items-center justify-between mb-6 pb-4 border-b border-rucher-yellow">
                                 <span className="font-serif font-bold text-rucher-dark text-lg">ApiGest</span>
                             </div>
@@ -654,7 +882,21 @@
                                             <label className="block text-xs font-bold text-rucher-green uppercase mb-1">Nom Exploitation</label>
                                             <input type="text" className="w-full border p-3 rounded bg-rucher-bg text-rucher-dark font-serif" value={profile.companyName||''} onChange={e=>{const p={...profile, companyName:e.target.value}; setProfile(p); Storage.saveProfile(p);}} />
                                         </div>
-                                        <div className="pt-6">
+                                        <div>
+                                            <label className="block text-xs font-bold text-rucher-green uppercase mb-1">SIRET</label>
+                                            <input type="text" className="w-full border p-3 rounded bg-rucher-bg text-rucher-dark font-serif" value={profile.siret||''} onChange={e=>{const p={...profile, siret:e.target.value}; setProfile(p); Storage.saveProfile(p);}} />
+                                        </div>
+                                        <div className="pt-6 border-t mt-4">
+                                            <h3 className="font-bold mb-4">Export PDF & Données</h3>
+                                            <div className="grid grid-cols-2 gap-2 mb-4">
+                                                 <button onClick={() => PDFService.generateBreedingRegisterPDF('2024-01-01', '2025-12-31')} className="bg-red-50 text-red-700 border border-red-200 px-3 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-2">
+                                                     <FileText size={14}/> Registre Élevage
+                                                 </button>
+                                                 <button onClick={() => PDFService.generateHoneyTraceabilityPDF('2024-01-01', '2025-12-31')} className="bg-amber-50 text-amber-700 border border-amber-200 px-3 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-2">
+                                                     <FileText size={14}/> Cahier Miellerie
+                                                 </button>
+                                            </div>
+
                                             <button onClick={() => {
                                                 const data = Storage.exportAllData();
                                                 const blob = new Blob([data], {type: 'application/json'});
@@ -663,11 +905,11 @@
                                                 a.href = url;
                                                 a.download = `backup_apigest_${new Date().toISOString().split('T')[0]}.json`;
                                                 a.click();
-                                            }} className="w-full bg-gray-100 text-gray-600 py-3 rounded font-bold flex items-center justify-center gap-2 hover:bg-gray-200 transition">
+                                            }} className="w-full bg-gray-100 text-gray-600 py-3 rounded font-bold flex items-center justify-center gap-2 hover:bg-gray-200 transition mb-2">
                                                 <Download size={18}/> Sauvegarder mes données
                                             </button>
                                             
-                                            <label className="mt-2 w-full bg-blue-50 text-blue-600 py-3 rounded font-bold flex items-center justify-center gap-2 hover:bg-blue-100 transition cursor-pointer">
+                                            <label className="w-full bg-blue-50 text-blue-600 py-3 rounded font-bold flex items-center justify-center gap-2 hover:bg-blue-100 transition cursor-pointer">
                                                 <Upload size={18}/> Restaurer une sauvegarde
                                                 <input type="file" accept=".json" className="hidden" onChange={(e) => {
                                                     const file = e.target.files[0];
