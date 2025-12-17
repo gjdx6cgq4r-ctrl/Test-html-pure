@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>ApiGest - Le Rucher Du Vieux Juigné</title>
 
-    <!-- PWA / Apple Configuration -->
+    <!-- CONFIGURATION APPLE (Ceci n'est pas la cause du bug, je le laisse pour le confort sur iPad) -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="ApiGest">
@@ -13,7 +13,7 @@
     <!-- FONTS -->
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
 
-    <!-- LIBS (CDN) -->
+    <!-- LIBRAIRIES EXTERNES (CDN) -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
@@ -32,12 +32,16 @@
       }
     </script>
     
-    <!-- REACT & TOOLS -->
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <!-- REACT & TOOLS (Version UMD globale pour éviter les erreurs d'import) -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://unpkg.com/lucide-react@latest/dist/umd/lucide-react.min.js"></script>
+    
+    <!-- PDF Generation -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
 
@@ -62,17 +66,21 @@
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         .safe-area-bottom { padding-bottom: env(safe-area-inset-bottom); }
         body { background-color: #FAF9F4; color: #2A331E; }
+        
+        /* Animation chargement */
+        .fade-in { animation: fadeIn 0.5s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     </style>
 <script type="importmap">
 {
   "imports": {
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
     "react": "https://esm.sh/react@^19.2.3",
     "react/": "https://esm.sh/react@^19.2.3/",
     "@google/genai": "https://esm.sh/@google/genai@^1.34.0",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "jspdf": "https://esm.sh/jspdf@^3.0.4",
     "lucide-react": "https://esm.sh/lucide-react@^0.561.0",
-    "jspdf-autotable": "https://esm.sh/jspdf-autotable@^5.0.2",
-    "jspdf": "https://esm.sh/jspdf@^3.0.4"
+    "jspdf-autotable": "https://esm.sh/jspdf-autotable@^5.0.2"
   }
 }
 </script>
@@ -81,35 +89,39 @@
     <div id="root"></div>
 
     <script type="text/babel">
+        /**
+         * APPLICATION APIGEST COMPLETE - VERSION MONOLITHIQUE
+         * Fusion de tous les composants pour garantir le fonctionnement sans serveur.
+         */
+
+        // --- 0. VARIABLES GLOBALES & UTILITAIRES ---
         const { useState, useEffect, useMemo, useRef } = React;
-        // Importation massive de toutes les icônes nécessaires
         const { 
             LayoutDashboard, Settings, MapPin, Plus, Trash2, Save, Wallet, 
             TrendingUp, TrendingDown, PackageCheck, AlertTriangle, X, 
             ChevronDown, ChevronRight, ShoppingCart, Archive, Package, Store, 
             User, Users, History, Edit2, Check, Search, Download, Upload, 
             FileText, Syringe, Truck, Utensils, Clock, MoreHorizontal, Phone, Mail, Medal,
-            Tag, Calendar, BookOpen, Droplets, BookOpenText, Layers, Coins, ImagePlus, ArrowDown, ArrowUp, ArrowUpDown
+            Tag, Calendar, BookOpen, Droplets, BookOpenText, Layers, Coins, ImagePlus, ArrowDown, ArrowUp, ArrowUpDown, PlusCircle, Loader2
         } = lucideReact;
-
-        // --- 0. CONSTANTES & UTILITAIRES ---
-        const LEGAL_STATUSES = ['Micro BA', 'Réel Simplifié', 'Particulier / Familial', 'Association', 'Société (EARL/GAEC)'];
-        const DEFAULT_COST_CONFIG = { jar250: 0.3, jar500: 0.45, jar1kg: 0.6, lid: 0.15, label250: 0.1, label500: 0.1, label1kg: 0.12, feedingYearly: 0, treatmentYearly: 0 };
-        const STANDARD_SIZES = ['125g', '250g', '500g', '1kg', '3kg', 'Seau'];
-
+        
+        // Utilitaires
         const generateId = () => 'id_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
-        const normalizeString = (str) => {
-            if (!str) return '';
-            return str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '').trim();
-        };
+        const normalizeString = (str) => (!str ? '' : str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '').trim());
         const getYearFromDateStr = (dateStr) => {
             if (!dateStr) return new Date().getFullYear();
             const parts = dateStr.split('-');
-            if (parts.length > 0) return parseInt(parts[0]);
-            return new Date(dateStr).getFullYear();
+            return parts.length > 0 ? parseInt(parts[0]) : new Date(dateStr).getFullYear();
         };
 
-        // --- 1. SERVICE DE STOCKAGE ---
+        // Constantes Métier
+        const LEGAL_STATUSES = ['Micro BA', 'Réel Simplifié', 'Particulier / Familial', 'Association', 'Société (EARL/GAEC)'];
+        const STANDARD_SIZES = ['125g', '250g', '500g', '1kg', '3kg', 'Seau'];
+        const MOVEMENT_TYPES = ["Transhumance", "Achat", "Vente", "Division", "Réunion", "Mortalité"];
+        const TREATMENT_OPTIONS = ["Apivar", "Apitraz", "Apistan", "Bayvarol", "Apiguard", "Thymovar", "Apilife Var", "MAQS", "Formic Pro", "Varromed", "Oxybee", "Apibioxal", "Acide Oxalique (Sublimation)", "Acide Oxalique (Dégouttement)", "Acide Formique", "Polyvar"];
+        const DEFAULT_COST_CONFIG = { jar250: 0.3, jar500: 0.45, jar1kg: 0.6, lid: 0.15, label250: 0.1, label500: 0.1, label1kg: 0.12, feedingYearly: 0, treatmentYearly: 0 };
+
+        // --- 1. SERVICE DE STOCKAGE (LOCALSTORAGE) ---
         const STORAGE_KEYS = {
             PROFILE: 'apigest_profile_v3', APIARIES: 'apigest_apiaries_v3', HIVES: 'apigest_hives_v3', 
             MOVEMENTS: 'apigest_movements_v3', INTERVENTIONS: 'apigest_interventions_v3', FEEDINGS: 'apigest_feedings_v3',
@@ -118,8 +130,9 @@
             EXPENSES: 'apigest_expenses_v3', CLIENTS: 'apigest_clients_v3', COST_CONFIG: 'apigest_cost_config_v3',
         };
 
+        // Helpers de stockage
         const get = (key, def) => { try { return JSON.parse(localStorage.getItem(key)) || def; } catch { return def; } };
-        const set = (key, val) => localStorage.setItem(key, JSON.stringify(val));
+        const set = (key, val) => { try { localStorage.setItem(key, JSON.stringify(val)); } catch(e) { console.error("Storage full", e); alert("Mémoire pleine !"); } };
 
         const createListManager = (key, defaultList = []) => ({
             getAll: () => get(key, defaultList),
@@ -200,11 +213,10 @@
                 const sales = Storage.sales.getAll().filter(i => i.date >= s && i.date <= e);
                 doc.autoTable({ startY: y, head: [['Date', 'Produit', 'Prix', 'Paiement']], body: sales.map(x => [x.date, x.productName, x.totalPrice + '€', x.paymentMethod]), theme:'grid', headStyles:{fillColor:[94, 112, 72]} });
                 doc.save('ventes.pdf');
-            },
-            // Ajout des autres générateurs si nécessaire...
+            }
         };
 
-        // --- 3. COMPOSANTS PARTAGÉS ---
+        // --- 3. COMPOSANTS UI PARTAGÉS ---
         
         const HiveIcon = ({ size = 24, className = "" }) => (
             <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -282,9 +294,9 @@
             );
         };
 
-        // --- 4. MODULES FONCTIONNELS (COMPOSANTS) ---
-        
-        // --- GESTION CLIENTS ---
+        // --- 4. MODULES FONCTIONNELS ---
+
+        // >>> MODULE CLIENTS <<<
         const ClientManager = () => {
             const [clients, setClients] = useState([]);
             const [sales, setSales] = useState([]);
@@ -294,12 +306,14 @@
 
             useEffect(() => refreshData(), []);
             const refreshData = () => { setClients(Storage.clients.getAll()); setSales(Storage.sales.getAll()); };
+            
             const handleSaveClient = () => {
                 if (!formData.name) return;
                 const id = editingId || Storage.generateId();
                 if(editingId) Storage.clients.update({ ...formData, id }); else Storage.clients.add({ ...formData, id });
                 setFormData({ name: '', phone: '', email: '', address: '' }); setEditingId(null); refreshData();
             };
+            
             const sortedClients = clients.map(c => ({
                 ...c, 
                 totalSpent: sales.filter(s => s.clientId === c.id || s.buyerName === c.name).reduce((sum, s) => sum + (s.totalPrice || 0), 0)
@@ -308,23 +322,24 @@
             return (
                 <div className="space-y-6">
                     <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-6 rounded-xl text-white shadow-md">
-                        <h2 className="text-2xl font-bold flex items-center gap-2"><Users /> Clients</h2>
+                        <h2 className="text-2xl font-bold flex items-center gap-2"><Users /> Gestion des Clients</h2>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 md:col-span-1 h-fit">
                             <h3 className="font-bold text-gray-800 mb-4">{editingId ? "Modifier" : "Nouveau"}</h3>
                             <input type="text" placeholder="Nom *" className="w-full border p-2 rounded mb-2" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})}/>
                             <input type="text" placeholder="Tel" className="w-full border p-2 rounded mb-2" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})}/>
+                            <input type="text" placeholder="Email" className="w-full border p-2 rounded mb-2" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})}/>
                             <button onClick={handleSaveClient} className="w-full bg-blue-600 text-white p-2 rounded font-bold">Enregistrer</button>
                         </div>
                         <div className="bg-white p-6 rounded-xl shadow-sm md:col-span-2">
                             <input type="text" placeholder="Rechercher..." className="w-full border p-2 rounded mb-4" value={searchTerm} onChange={e => setSearchTerm(e.target.value)}/>
-                            <div className="space-y-2">
+                            <div className="space-y-2 max-h-[400px] overflow-y-auto">
                                 {sortedClients.map(client => (
                                     <div key={client.id} className="flex justify-between p-3 border rounded items-center bg-gray-50">
                                         <div>
                                             <div className="font-bold">{client.name}</div>
-                                            <div className="text-xs text-gray-500">{client.phone} | {client.totalSpent.toFixed(2)}€ Achat</div>
+                                            <div className="text-xs text-gray-500">{client.phone} | Achat: {client.totalSpent.toFixed(2)}€</div>
                                         </div>
                                         <div className="flex gap-2">
                                             <button onClick={()=>{setEditingId(client.id); setFormData(client);}} className="text-blue-500"><Edit2 size={16}/></button>
@@ -339,7 +354,7 @@
             );
         };
 
-        // --- GESTION DEPENSES ---
+        // >>> MODULE DEPENSES <<<
         const Expenses = () => {
             const [expenses, setExpenses] = useState([]);
             const [newExpense, setNewExpense] = useState({ date: new Date().toISOString().split('T')[0], store: '', description: '', category: 'MATERIEL', amount: '' });
@@ -362,16 +377,17 @@
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
                             <input type="date" className="border p-2 rounded" value={newExpense.date} onChange={e=>setNewExpense({...newExpense, date: e.target.value})}/>
                             <input type="text" placeholder="Magasin" className="border p-2 rounded" value={newExpense.store} onChange={e=>setNewExpense({...newExpense, store: e.target.value})}/>
-                            <input type="text" placeholder="Description" className="border p-2 rounded" value={newExpense.description} onChange={e=>setNewExpense({...newExpense, description: e.target.value})}/>
+                            <input type="text" placeholder="Article" className="border p-2 rounded" value={newExpense.description} onChange={e=>setNewExpense({...newExpense, description: e.target.value})}/>
                             <input type="number" placeholder="Montant" className="border p-2 rounded" value={newExpense.amount} onChange={e=>setNewExpense({...newExpense, amount: e.target.value})}/>
                         </div>
                         <button onClick={handleAdd} className="mt-2 w-full bg-red-600 text-white p-2 rounded font-bold">Ajouter Dépense</button>
                     </div>
-                    <div className="space-y-2">
+                    <div className="space-y-2 max-h-[400px] overflow-y-auto">
                         {expenses.map(exp => (
                             <div key={exp.id} className="flex justify-between p-3 bg-white border rounded items-center">
                                 <div><div className="font-bold">{exp.store}</div><div className="text-xs text-gray-500">{exp.description} ({new Date(exp.date).toLocaleDateString()})</div></div>
                                 <div className="font-bold text-red-600">-{exp.amount.toFixed(2)}€</div>
+                                <button onClick={()=>{Storage.expenses.delete(exp.id); setExpenses(Storage.expenses.getAll().sort((a,b)=>new Date(b.date)-new Date(a.date)));}} className="ml-2 text-gray-300 hover:text-red-500"><Trash2 size={16}/></button>
                             </div>
                         ))}
                     </div>
@@ -379,17 +395,31 @@
             );
         };
 
-        // --- REGISTRE ELEVAGE ---
+        // >>> MODULE ELEVAGE <<<
         const BreedingRegister = () => {
             const [activeTab, setActiveTab] = useState('APIARY');
             const [apiaries, setApiaries] = useState([]);
             const [hives, setHives] = useState([]);
-            useEffect(() => { setApiaries(Storage.getApiaries()); setHives(Storage.hives.getAll()); }, []);
+            const [interventions, setInterventions] = useState([]);
+            const [newInt, setNewInt] = useState({date: new Date().toISOString().split('T')[0], drugName: '', batchNumber: '', quantity: '', apiaryId: ''});
+
+            useEffect(() => { 
+                setApiaries(Storage.getApiaries()); 
+                setHives(Storage.hives.getAll()); 
+                setInterventions(Storage.interventions.getAll());
+            }, []);
+
+            const addIntervention = () => {
+                if(!newInt.drugName) return;
+                Storage.interventions.add({...newInt, id:Storage.generateId()});
+                setInterventions(Storage.interventions.getAll());
+                setNewInt({...newInt, drugName:'', batchNumber:''});
+            };
 
             return (
                 <div className="space-y-6">
                     <div className="flex gap-2 mb-4 overflow-x-auto">
-                        {[{id:'APIARY',label:'Ruchers',icon:MapPin}, {id:'MOVEMENTS',label:'Mouvements',icon:Truck}].map(t => (
+                        {[{id:'APIARY',label:'Ruchers',icon:MapPin}, {id:'SANITARY',label:'Soins',icon:Syringe}].map(t => (
                             <button key={t.id} onClick={()=>setActiveTab(t.id)} className={`flex items-center gap-2 px-4 py-2 rounded-full font-bold border ${activeTab===t.id?'bg-honey-600 text-white':'bg-white'}`}>
                                 <t.icon size={16}/> {t.label}
                             </button>
@@ -407,25 +437,53 @@
                                                 <HiveIcon size={12}/> {hive.name}
                                             </span>
                                         ))}
-                                        {hives.filter(h=>h.apiaryId===apiary.id).length===0 && <span className="text-gray-400 italic text-xs">Vide</span>}
                                     </div>
                                 </div>
                             ))}
                         </div>
                     )}
-                    {activeTab === 'MOVEMENTS' && <div className="text-center py-10 text-gray-400 italic">Fonctionnalité complète dans la version finale...</div>}
+                    {activeTab === 'SANITARY' && (
+                        <div>
+                             <div className="bg-white p-4 rounded-xl border mb-4">
+                                 <h3 className="font-bold mb-2">Nouveau Traitement</h3>
+                                 <input type="date" className="border p-2 rounded w-full mb-2" value={newInt.date} onChange={e=>setNewInt({...newInt, date:e.target.value})}/>
+                                 <select className="border p-2 rounded w-full mb-2" value={newInt.drugName} onChange={e=>setNewInt({...newInt, drugName:e.target.value})}>
+                                     <option value="">Médicament...</option>
+                                     {TREATMENT_OPTIONS.map(t=><option key={t} value={t}>{t}</option>)}
+                                 </select>
+                                 <input type="text" placeholder="N° Lot (Obligatoire)" className="border p-2 rounded w-full mb-2" value={newInt.batchNumber} onChange={e=>setNewInt({...newInt, batchNumber:e.target.value})}/>
+                                 <button onClick={addIntervention} className="w-full bg-red-600 text-white p-2 rounded font-bold">Enregistrer</button>
+                             </div>
+                             <div className="space-y-2">
+                                 {interventions.map(i => (
+                                     <div key={i.id} className="p-3 bg-white border rounded">
+                                         <div className="font-bold">{i.drugName}</div>
+                                         <div className="text-xs text-gray-500">Lot: {i.batchNumber} | {new Date(i.date).toLocaleDateString()}</div>
+                                         <button onClick={()=>{Storage.interventions.delete(i.id); setInterventions(Storage.interventions.getAll());}} className="text-red-400 text-xs mt-1">Supprimer</button>
+                                     </div>
+                                 ))}
+                             </div>
+                        </div>
+                    )}
                 </div>
             );
         };
 
-        // --- MIELLERIE & TRACABILITE ---
+        // >>> MODULE MIELLERIE & CAISSE <<<
         const HoneyTraceability = ({ initialTab }) => {
             const [activeTab, setActiveTab] = useState(initialTab || 'POS');
             const [products, setProducts] = useState([]);
             const [cart, setCart] = useState([]);
             const [animatingItems, setAnimatingItems] = useState([]);
+            const [packagings, setPackagings] = useState([]);
+            const [honeyTypes, setHoneyTypes] = useState([]);
             
-            useEffect(() => { setProducts(Storage.products.getAll()); setActiveTab(initialTab || 'POS'); }, [initialTab]);
+            useEffect(() => { 
+                setProducts(Storage.products.getAll()); 
+                setPackagings(Storage.packaging.getAll());
+                setHoneyTypes(Storage.getHoneyTypes());
+                setActiveTab(initialTab || 'POS'); 
+            }, [initialTab]);
 
             const addToCart = (p) => {
                 const key = Date.now();
@@ -458,7 +516,7 @@
             return (
                 <div className="h-full">
                      <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
-                        {[{id:'POS', label:'Caisse', icon:ShoppingCart}, {id:'PRODUCTS', label:'Produits', icon:Store}, {id:'REVENUE', label:'Recettes', icon:BookOpenText}].map(t => (
+                        {[{id:'POS', label:'Caisse', icon:ShoppingCart}, {id:'PRODUCTS', label:'Produits', icon:Store}, {id:'PACKAGING', label:'Mise en pot', icon:Package}].map(t => (
                             <button key={t.id} onClick={() => setActiveTab(t.id)} className={`flex items-center gap-2 px-5 py-2 rounded-full text-sm font-bold tracking-wide transition shadow-sm ${activeTab===t.id ? 'bg-rucher-yellow text-rucher-dark' : 'bg-white text-gray-500 border border-gray-200'}`}>
                                 <t.icon size={16}/> {t.label}
                             </button>
@@ -512,7 +570,7 @@
                      
                      {activeTab === 'PRODUCTS' && (
                          <div className="bg-white p-6 rounded-xl shadow-sm">
-                             <h2 className="font-serif text-2xl mb-4">Création Produit</h2>
+                             <h2 className="font-serif text-2xl mb-4">Produits</h2>
                              <div className="flex gap-2">
                                  <input id="newProdName" placeholder="Nom (ex: Miel Acacia)" className="border p-2 rounded flex-1"/>
                                  <input id="newProdPrice" placeholder="Prix" type="number" className="border p-2 rounded w-24"/>
@@ -522,7 +580,6 @@
                                      if(name && price) {
                                          Storage.products.add({id:Storage.generateId(), name, price, potSize:'500g'});
                                          setProducts(Storage.products.getAll());
-                                         alert('Produit ajouté');
                                      }
                                  }} className="bg-rucher-yellow px-4 rounded font-bold text-rucher-dark">Ajouter</button>
                              </div>
@@ -531,11 +588,33 @@
                              </div>
                          </div>
                      )}
+
+                     {activeTab === 'PACKAGING' && (
+                        <div className="bg-white p-6 rounded-xl shadow-sm">
+                            <h2 className="font-serif text-2xl mb-4">Créer un Lot</h2>
+                            <p className="text-sm text-gray-500 mb-4">Générez un numéro de lot pour la traçabilité.</p>
+                            <input className="w-full border p-2 rounded mb-2" placeholder="Numéro de Lot (ex: 2025-01-AC)" id="batchNum"/>
+                            <input className="w-full border p-2 rounded mb-2" type="number" placeholder="Quantité de pots" id="batchQty"/>
+                            <button onClick={()=>{
+                                const num = document.getElementById('batchNum').value;
+                                const qty = document.getElementById('batchQty').value;
+                                if(num && qty) {
+                                    Storage.packaging.add({id:Storage.generateId(), date: new Date().toISOString(), finalBatchNumber: num, quantityPots: qty, potSize: '500g'});
+                                    setPackagings(Storage.packaging.getAll());
+                                    alert('Lot créé');
+                                }
+                            }} className="w-full bg-amber-500 text-white p-2 rounded font-bold">Enregistrer Mise en Pot</button>
+                            
+                            <div className="mt-4 space-y-2">
+                                {packagings.map(p => <div key={p.id} className="text-sm p-2 bg-gray-50 border rounded flex justify-between"><span>Lot: {p.finalBatchNumber}</span><span>{p.quantityPots} pots</span></div>)}
+                            </div>
+                        </div>
+                     )}
                 </div>
             );
         };
 
-        // --- APP PRINCIPALE ---
+        // --- 5. APPLICATION PRINCIPALE ---
         const App = () => {
             const [view, setView] = useState('DASHBOARD');
             const [honeyTab, setHoneyTab] = useState('POS');
@@ -630,11 +709,30 @@
                                                 const url = URL.createObjectURL(blob);
                                                 const a = document.createElement('a');
                                                 a.href = url;
-                                                a.download = `backup_apigest.json`;
+                                                a.download = `backup_apigest_${new Date().toISOString().split('T')[0]}.json`;
                                                 a.click();
                                             }} className="w-full bg-gray-100 text-gray-600 py-3 rounded font-bold flex items-center justify-center gap-2 hover:bg-gray-200 transition">
                                                 <Download size={18}/> Sauvegarder mes données
                                             </button>
+                                            
+                                            <label className="mt-2 w-full bg-blue-50 text-blue-600 py-3 rounded font-bold flex items-center justify-center gap-2 hover:bg-blue-100 transition cursor-pointer">
+                                                <Upload size={18}/> Restaurer une sauvegarde
+                                                <input type="file" accept=".json" className="hidden" onChange={(e) => {
+                                                    const file = e.target.files[0];
+                                                    if(file) {
+                                                        const reader = new FileReader();
+                                                        reader.onload = (ev) => {
+                                                            if(Storage.importAllData(ev.target.result)) {
+                                                                alert('Restauration réussie !');
+                                                                window.location.reload();
+                                                            } else {
+                                                                alert('Fichier invalide');
+                                                            }
+                                                        };
+                                                        reader.readAsText(file);
+                                                    }
+                                                }}/>
+                                            </label>
                                         </div>
                                     </div>
                                 </div>
@@ -645,6 +743,7 @@
             );
         };
 
+        // RENDU FINAL
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
     </script>
