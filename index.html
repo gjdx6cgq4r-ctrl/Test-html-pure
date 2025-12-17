@@ -32,7 +32,7 @@
       }
     </script>
     
-    <!-- REACT & TOOLS (UMD Globals) -->
+    <!-- REACT & TOOLS (UMD Globals pour fonctionnement sans build) -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -68,13 +68,13 @@
 <script type="importmap">
 {
   "imports": {
-    "react": "https://esm.sh/react@^19.2.3",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
-    "react/": "https://esm.sh/react@^19.2.3/",
     "@google/genai": "https://esm.sh/@google/genai@^1.34.0",
+    "react": "https://esm.sh/react@^19.2.3",
+    "react/": "https://esm.sh/react@^19.2.3/",
     "lucide-react": "https://esm.sh/lucide-react@^0.561.0",
-    "jspdf": "https://esm.sh/jspdf@^3.0.4",
-    "jspdf-autotable": "https://esm.sh/jspdf-autotable@^5.0.2"
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "jspdf-autotable": "https://esm.sh/jspdf-autotable@^5.0.2",
+    "jspdf": "https://esm.sh/jspdf@^3.0.4"
   }
 }
 </script>
@@ -133,23 +133,42 @@
         };
 
         // --- 1. SERVICE DE STOCKAGE (LocalStorage) ---
+        // Basé sur votre fichier services/storageService.ts avec les clés _v2
         const STORAGE_KEYS = {
-            PROFILE: 'apigest_profile_v3', APIARIES: 'apigest_apiaries_v3', HIVES: 'apigest_hives_v3', 
-            MOVEMENTS: 'apigest_movements_v3', INTERVENTIONS: 'apigest_interventions_v3', FEEDINGS: 'apigest_feedings_v3',
-            HARVESTS: 'apigest_harvests_v3', PACKAGING: 'apigest_packaging_v3', SALES: 'apigest_sales_v3',
-            PRODUCTS: 'apigest_products_v3', HONEY_TYPES: 'apigest_honey_types_v3', FOOD_TYPES: 'apigest_food_types_v3',
-            EXPENSES: 'apigest_expenses_v3', CLIENTS: 'apigest_clients_v3', COST_CONFIG: 'apigest_cost_config_v3',
+            PROFILE: 'apigest_profile_v2',
+            APIARIES: 'apigest_apiaries_v2',
+            HIVES: 'apigest_hives_v2', 
+            MOVEMENTS: 'apigest_movements_v2',
+            INTERVENTIONS: 'apigest_interventions_v2',
+            FEEDINGS: 'apigest_feedings_v2',
+            HARVESTS: 'apigest_harvests_v2',
+            PACKAGING: 'apigest_packaging_v2',
+            SALES: 'apigest_sales_v2',
+            PRODUCTS: 'apigest_products_v2',
+            HONEY_TYPES: 'apigest_honey_types_v2',
+            FOOD_TYPES: 'apigest_food_types_v2',
+            EXPENSES: 'apigest_expenses_v2',
+            CLIENTS: 'apigest_clients_v2',
+            COST_CONFIG: 'apigest_cost_config_v2',
         };
 
+        // Données d'exemple (exactement comme dans votre fichier)
+        const SAMPLE_PROFILE = { companyName: 'Le Rucher des Saveurs', napi: 'A1234567', siret: '80012345600019', address: '12 Chemin des Abeilles, 49000 Angers', status: 'Micro BA', creationDate: '2020-01-15', vetName: 'Dr. Vétérinaire', vetAddress: 'Clinique Vet, Angers' };
+        const SAMPLE_COST_CONFIG = { jar250: 0.30, jar500: 0.45, jar1kg: 0.60, lid: 0.15, label250: 0.10, label500: 0.10, label1kg: 0.12, feedingYearly: 300, treatmentYearly: 150 };
+        const SAMPLE_APIARIES = [ { id: 'api_1', name: 'Rucher du Château', location: 'Parc du Château' }, { id: 'api_2', name: 'Rucher Forêt', location: 'Forêt de Juigné' } ];
+        const SAMPLE_HIVES = [ { id: 'h_1', name: 'Ruche 01', apiaryId: 'api_1' }, { id: 'h_2', name: 'Ruche 02', apiaryId: 'api_1' }, { id: 'h_3', name: 'Ruche 03', apiaryId: 'api_1' }, { id: 'h_4', name: 'Ruche 04', apiaryId: 'api_1' }, { id: 'h_5', name: 'Ruche 05', apiaryId: 'api_1' }, { id: 'h_6', name: 'Ruche F1', apiaryId: 'api_2' }, { id: 'h_7', name: 'Ruche F2', apiaryId: 'api_2' }, { id: 'h_8', name: 'Ruche F3', apiaryId: 'api_2' } ];
+        const SAMPLE_MOVEMENTS = [ { id: 'mov_1', date: '2024-03-15', type: 'Transhumance', description: 'Déplacement sur Colza', originApiaryId: 'api_1', destinationApiaryId: 'api_2', quantity: 3 } ];
+        const SAMPLE_INTERVENTIONS = [ { id: 'int_1', date: '2024-08-20', drugName: 'Apivar', batchNumber: 'L8833', quantity: '2 lanières', posology: 'Traitement fin de saison', apiaryId: 'api_1', hiveId: '' }, { id: 'int_2', date: '2024-12-15', drugName: 'Acide Oxalique', batchNumber: 'AO-22', quantity: '30ml', posology: 'Dégouttement hors couvain', apiaryId: 'api_2', hiveId: '' } ];
+        const SAMPLE_FEEDINGS = [ { id: 'feed_1', date: '2024-02-10', foodType: 'Candi', quantity: '1 pain 2.5kg', apiaryId: 'api_1', hiveId: '' }, { id: 'feed_2', date: '2024-09-01', foodType: 'Sirop 50/50', quantity: '3 Litres', apiaryId: 'api_2', hiveId: '' } ];
+        const SAMPLE_HARVESTS = [ { id: 'har_1', date: '2024-05-20', apiaryId: 'api_2', honeyType: 'Printemps', quantityKg: 45, batchId: 'VRAC-2024-001' }, { id: 'har_2', date: '2024-07-15', apiaryId: 'api_1', honeyType: 'Toutes fleurs', quantityKg: 80, batchId: 'VRAC-2024-002' } ];
+        const SAMPLE_PACKAGING = [ { id: 'pkg_1', date: '2024-06-01', harvestBatchIds: ['har_1'], quantityPots: 80, potSize: '500g', finalBatchNumber: '2024-PRI', ddm: '2026-06-01', honeyType: 'Printemps' }, { id: 'pkg_2', date: '2024-08-01', harvestBatchIds: ['har_2'], quantityPots: 70, potSize: '1kg', finalBatchNumber: '2024-ETF', ddm: '2026-08-01', honeyType: 'Toutes fleurs' } ];
+        const SAMPLE_PRODUCTS = [ { id: 'prod_1', name: 'Miel de Printemps Crémeux', potSize: '500g', price: 7.50, currentBatchId: 'pkg_1' }, { id: 'prod_2', name: 'Miel Toutes Fleurs', potSize: '1kg', price: 14.00, currentBatchId: 'pkg_2' } ];
+        const SAMPLE_CLIENTS = [ { id: 'cli_1', name: 'Mme Durand', phone: '0601020304', email: 'durand@email.com', address: 'Angers' }, { id: 'cli_2', name: 'Épicerie Du Coin', phone: '0241000000', address: 'Place du village' } ];
+        const SAMPLE_SALES = [ { id: 'sale_1', date: '2024-06-15', finalBatchNumber: '2024-PRI', quantitySold: 2, buyerType: 'DIRECT', buyerName: 'Mme Durand', clientId: 'cli_1', paymentMethod: 'ESPECES', totalPrice: 15.00, productName: 'Miel de Printemps Crémeux', format: '500g' }, { id: 'sale_2', date: '2024-09-10', finalBatchNumber: '2024-ETF', quantitySold: 10, buyerType: 'WHOLESALE', buyerName: 'Épicerie Du Coin', clientId: 'cli_2', paymentMethod: 'VIREMENT', totalPrice: 140.00, productName: 'Miel Toutes Fleurs', format: '1kg' } ];
+        const SAMPLE_EXPENSES = [ { id: 'exp_1', date: '2024-01-10', store: 'Icko', description: 'Cire Gauffrée', category: 'MATERIEL', amount: 150.00 }, { id: 'exp_2', date: '2024-03-05', store: 'Pharmacie', description: 'Acide Formique', category: 'SOIN', amount: 45.50 }, { id: 'exp_3', date: '2024-05-15', store: 'Verrerie de l\'Ouest', description: 'Pots 500g + Couvercles', category: 'CONDITIONNEMENT', amount: 200.00 } ];
+
         const get = (key, def) => { try { return JSON.parse(localStorage.getItem(key)) || def; } catch { return def; } };
-        const set = (key, val) => { 
-            try { 
-                localStorage.setItem(key, JSON.stringify(val)); 
-            } catch(e) { 
-                alert("Mémoire iPad pleine ! Essayez de supprimer des photos de produits ou d'exporter/nettoyer les données."); 
-                console.error(e);
-            } 
-        };
+        const set = (key, val) => { try { localStorage.setItem(key, JSON.stringify(val)); } catch(e) { console.error("Quota Exceeded", e); } };
 
         const createListManager = (key, defaultList = []) => ({
             getAll: () => get(key, defaultList),
@@ -158,46 +177,48 @@
             delete: (id) => set(key, get(key, defaultList).filter(x=>x.id!==id))
         });
 
-        // Données par défaut
-        const DEFAULT_COST_CONFIG = { jar250: 0.3, jar500: 0.45, jar1kg: 0.6, lid: 0.15, label250: 0.1, label500: 0.1, label1kg: 0.12, feedingYearly: 0, treatmentYearly: 0 };
-        const DEFAULT_HONEY_TYPES = ['Toutes fleurs', 'Acacia', 'Printemps', 'Été', 'Châtaignier'];
-        const DEFAULT_FOOD_TYPES = ['Sirop 50/50', 'Candi', 'Sirop stimulation'];
+        // Config par défaut
+        const DEFAULT_HONEY_TYPES = ['Toutes fleurs', 'Acacia', 'Châtaignier', 'Printemps', 'Été', 'Forêt', 'Lavande', 'Sapin'];
+        const DEFAULT_FOOD_TYPES = ['Sirop 50/50', 'Sirop 70/30', 'Sirop de stimulation', 'Candi', 'Candi Protéiné', 'Sucre'];
 
+        // OBJET STORAGE GLOBAL
         const Storage = {
             generateId,
-            getProfile: () => get(STORAGE_KEYS.PROFILE, { companyName: 'Le Rucher Du Vieux Juigné', status: 'Micro BA' }),
+            getProfile: () => get(STORAGE_KEYS.PROFILE, SAMPLE_PROFILE),
             saveProfile: (p) => set(STORAGE_KEYS.PROFILE, p),
-            getApiaries: () => get(STORAGE_KEYS.APIARIES, []),
-            saveApiary: (a) => { const l = get(STORAGE_KEYS.APIARIES, []); const i = l.findIndex(x=>x.id===a.id); if(i>=0) l[i]=a; else l.push(a); set(STORAGE_KEYS.APIARIES, l); },
-            deleteApiary: (id) => set(STORAGE_KEYS.APIARIES, get(STORAGE_KEYS.APIARIES, []).filter(x=>x.id!==id)),
             
-            hives: createListManager(STORAGE_KEYS.HIVES),
-            movements: createListManager(STORAGE_KEYS.MOVEMENTS),
-            interventions: createListManager(STORAGE_KEYS.INTERVENTIONS),
-            feedings: createListManager(STORAGE_KEYS.FEEDINGS),
-            harvests: createListManager(STORAGE_KEYS.HARVESTS),
-            packaging: createListManager(STORAGE_KEYS.PACKAGING),
-            sales: createListManager(STORAGE_KEYS.SALES),
-            products: createListManager(STORAGE_KEYS.PRODUCTS),
-            expenses: createListManager(STORAGE_KEYS.EXPENSES),
-            clients: createListManager(STORAGE_KEYS.CLIENTS),
+            getApiaries: () => get(STORAGE_KEYS.APIARIES, SAMPLE_APIARIES),
+            saveApiary: (a) => { const l = get(STORAGE_KEYS.APIARIES, SAMPLE_APIARIES); const i = l.findIndex(x=>x.id===a.id); if(i>=0) l[i]=a; else l.push(a); set(STORAGE_KEYS.APIARIES, l); },
+            deleteApiary: (id) => set(STORAGE_KEYS.APIARIES, get(STORAGE_KEYS.APIARIES, SAMPLE_APIARIES).filter(x=>x.id!==id)),
+            
+            hives: createListManager(STORAGE_KEYS.HIVES, SAMPLE_HIVES),
+            movements: createListManager(STORAGE_KEYS.MOVEMENTS, SAMPLE_MOVEMENTS),
+            interventions: createListManager(STORAGE_KEYS.INTERVENTIONS, SAMPLE_INTERVENTIONS),
+            feedings: createListManager(STORAGE_KEYS.FEEDINGS, SAMPLE_FEEDINGS),
+            harvests: createListManager(STORAGE_KEYS.HARVESTS, SAMPLE_HARVESTS),
+            packaging: createListManager(STORAGE_KEYS.PACKAGING, SAMPLE_PACKAGING),
+            sales: createListManager(STORAGE_KEYS.SALES, SAMPLE_SALES),
+            products: createListManager(STORAGE_KEYS.PRODUCTS, SAMPLE_PRODUCTS),
+            expenses: createListManager(STORAGE_KEYS.EXPENSES, SAMPLE_EXPENSES),
+            clients: createListManager(STORAGE_KEYS.CLIENTS, SAMPLE_CLIENTS),
             
             getHoneyTypes: () => get(STORAGE_KEYS.HONEY_TYPES, DEFAULT_HONEY_TYPES),
             saveHoneyTypes: (t) => set(STORAGE_KEYS.HONEY_TYPES, t),
             getFoodTypes: () => get(STORAGE_KEYS.FOOD_TYPES, DEFAULT_FOOD_TYPES),
             saveFoodTypes: (t) => set(STORAGE_KEYS.FOOD_TYPES, t),
-            getCostConfig: () => get(STORAGE_KEYS.COST_CONFIG, DEFAULT_COST_CONFIG),
+            getCostConfig: () => get(STORAGE_KEYS.COST_CONFIG, SAMPLE_COST_CONFIG),
             saveCostConfig: (c) => set(STORAGE_KEYS.COST_CONFIG, c),
 
             exportAllData: () => {
                 const data = {};
                 Object.keys(STORAGE_KEYS).forEach(k => data[k] = get(STORAGE_KEYS[k], []));
-                return JSON.stringify({version:'3.0', timestamp: new Date().toISOString(), data});
+                return JSON.stringify({version:'1.20', timestamp: new Date().toISOString(), data});
             },
             importAllData: (json) => {
                 try {
                     const parsed = JSON.parse(json);
                     if(!parsed.data) return false;
+                    Object.values(STORAGE_KEYS).forEach(key => localStorage.removeItem(key)); // Nettoyer avant import
                     Object.keys(parsed.data).forEach(k => {
                         const foundKey = Object.keys(STORAGE_KEYS).find(sk => sk === k || STORAGE_KEYS[sk] === k);
                         if(foundKey) set(STORAGE_KEYS[foundKey], parsed.data[k]);
@@ -207,109 +228,110 @@
             }
         };
 
-        // --- 2. SERVICE PDF ---
+        // --- 2. SERVICE PDF INTEGRÉ ---
         const PDFService = {
             generateDoc: (title, start, end) => {
                 const { jsPDF } = window.jspdf;
                 const doc = new jsPDF();
                 const profile = Storage.getProfile();
                 
-                // Header
                 doc.setFontSize(18);
                 doc.setTextColor(42, 51, 30);
                 doc.text(profile.companyName || "Apiculture", 14, 20);
-                
                 doc.setFontSize(10);
                 doc.setTextColor(100);
                 let y = 26;
                 doc.text(profile.address || '', 14, y);
                 if(profile.address) y+=6;
-                doc.text(`NAPI: ${profile.napi} | SIRET: ${profile.siret}`, 14, y);
+                doc.text(`NAPI: ${profile.napi} | SIRET: ${profile.siret} | Statut: ${profile.status}`, 14, y);
                 y+=6;
-                
-                doc.setDrawColor(244, 206, 94); // Yellow line
+                doc.text(`Vétérinaire: ${profile.vetName} - ${profile.vetAddress}`, 14, y);
+                doc.setDrawColor(200);
                 doc.line(14, y+4, 196, y+4);
-                
                 doc.setFontSize(14);
                 doc.setTextColor(0);
-                const startStr = new Date(start).toLocaleDateString('fr-FR');
-                const endStr = new Date(end).toLocaleDateString('fr-FR');
-                doc.text(`${title} (${startStr} - ${endStr})`, 14, y+14);
-                
-                return {doc, y: y+24};
+                const sStr = new Date(start).toLocaleDateString('fr-FR');
+                const eStr = new Date(end).toLocaleDateString('fr-FR');
+                doc.text(`${title} (${sStr} - ${eStr})`, 14, y+14);
+                return {doc, y: y+20};
             },
             
-            // Registre d'élevage
+            filterByDate: (items, start, end) => items.filter(i => i.date >= start && i.date <= end),
+
             generateBreedingRegisterPDF: (s, e) => {
                 const {doc, y} = PDFService.generateDoc("Registre d'Élevage", s, e);
-                const filter = (arr) => arr.filter(i => i.date >= s && i.date <= e);
-                
-                // Traitements
-                doc.setFontSize(12); doc.text("1. Traitements Sanitaires", 14, y);
+                const filter = (arr) => PDFService.filterByDate(arr, s, e);
+                const apiaries = Storage.getApiaries();
+                const hives = Storage.hives.getAll();
+                const getTarget = (aid, hid) => {
+                    const aname = apiaries.find(a=>a.id===aid)?.name || 'Inconnu';
+                    const hname = hid ? hives.find(h=>h.id===hid)?.name : null;
+                    return hname ? `${aname} > ${hname}` : aname;
+                };
+
+                doc.setFontSize(12); doc.text("1. Traitements", 14, y);
                 doc.autoTable({
-                    startY: y+4,
-                    head: [['Date', 'Médicament', 'N° Lot', 'Qté']],
-                    body: filter(Storage.interventions.getAll()).map(i => [new Date(i.date).toLocaleDateString(), i.drugName, i.batchNumber, i.quantity]),
+                    startY: y+5, head: [['Date', 'Rucher/Ruche', 'Médicament', 'N° Lot', 'Qté', 'Posologie']],
+                    body: filter(Storage.interventions.getAll()).map(i => [new Date(i.date).toLocaleDateString(), getTarget(i.apiaryId, i.hiveId), i.drugName, i.batchNumber, i.quantity, i.posology]),
                     theme:'grid', headStyles:{fillColor:[220, 38, 38]}
                 });
                 
-                // Mouvements
-                let finalY = doc.lastAutoTable.finalY + 10;
-                doc.text("2. Mouvements", 14, finalY);
+                let fy = doc.lastAutoTable.finalY + 15;
+                doc.text("2. Mouvements", 14, fy);
                 doc.autoTable({
-                    startY: finalY+4,
-                    head: [['Date', 'Type', 'Détail', 'Qté']],
-                    body: filter(Storage.movements.getAll()).map(m => [new Date(m.date).toLocaleDateString(), m.type, m.description, m.quantity]),
+                    startY: fy+5, head: [['Date', 'Type', 'Origine > Dest.', 'Qté', 'Note']],
+                    body: filter(Storage.movements.getAll()).map(m => [new Date(m.date).toLocaleDateString(), m.type, `${apiaries.find(a=>a.id===m.originApiaryId)?.name||'-'} > ${apiaries.find(a=>a.id===m.destinationApiaryId)?.name||'-'}`, m.quantity, m.description]),
                     theme:'grid', headStyles:{fillColor:[37, 99, 235]}
                 });
-                
+
+                fy = doc.lastAutoTable.finalY + 15;
+                if(fy > 250) { doc.addPage(); fy=20; }
+                doc.text("3. Nourrissement", 14, fy);
+                doc.autoTable({
+                    startY: fy+5, head: [['Date', 'Rucher', 'Type', 'Qté']],
+                    body: filter(Storage.feedings.getAll()).map(f => [new Date(f.date).toLocaleDateString(), getTarget(f.apiaryId, f.hiveId), f.foodType, f.quantity]),
+                    theme:'grid', headStyles:{fillColor:[202, 138, 4]}
+                });
                 doc.save('registre_elevage.pdf');
             },
             
-            // Cahier Miellerie
             generateHoneyTraceabilityPDF: (s, e) => {
                 const {doc, y} = PDFService.generateDoc("Cahier de Miellerie", s, e);
-                const filter = (arr) => arr.filter(i => i.date >= s && i.date <= e);
-                
-                // Récoltes
+                const filter = (arr) => PDFService.filterByDate(arr, s, e);
+                const apiaries = Storage.getApiaries();
+
                 doc.setFontSize(12); doc.text("1. Récoltes (Vrac)", 14, y);
                 doc.autoTable({
-                    startY: y+4,
-                    head: [['Date', 'Miel', 'Poids', 'Lot Vrac']],
-                    body: filter(Storage.harvests.getAll()).map(h => [new Date(h.date).toLocaleDateString(), h.honeyType, h.quantityKg + 'kg', h.batchId]),
+                    startY: y+5, head: [['Date', 'Rucher', 'Miel', 'Poids', 'Lot Vrac']],
+                    body: filter(Storage.harvests.getAll()).map(h => [new Date(h.date).toLocaleDateString(), apiaries.find(a=>a.id===h.apiaryId)?.name||'Inconnu', h.honeyType, h.quantityKg+'kg', h.batchId]),
                     theme:'grid', headStyles:{fillColor:[217, 119, 6]}
                 });
                 
-                // Pots
-                let finalY = doc.lastAutoTable.finalY + 10;
-                doc.text("2. Mises en Pot", 14, finalY);
+                let fy = doc.lastAutoTable.finalY + 15;
+                doc.text("2. Conditionnement", 14, fy);
                 doc.autoTable({
-                    startY: finalY+4,
-                    head: [['Date', 'Lot Final', 'Qté x Format']],
+                    startY: fy+5, head: [['Date', 'Lot Étiquette', 'Conditionnement']],
                     body: filter(Storage.packaging.getAll()).map(p => [new Date(p.date).toLocaleDateString(), p.finalBatchNumber, `${p.quantityPots} x ${p.potSize}`]),
                     theme:'grid', headStyles:{fillColor:[217, 119, 6]}
                 });
                 doc.save('miellerie.pdf');
             },
 
-            // Ventes
             generateSalesPDF: (s, e) => {
                 const {doc, y} = PDFService.generateDoc("Livre de Recettes", s, e);
-                const sales = Storage.sales.getAll().filter(i => i.date >= s && i.date <= e).sort((a,b)=>new Date(a.date)-new Date(b.date));
+                const sales = PDFService.filterByDate(Storage.sales.getAll(), s, e).sort((a,b)=>new Date(a.date)-new Date(b.date));
                 
                 doc.autoTable({ 
-                    startY: y, 
-                    head: [['Date', 'Client/Lieu', 'Produit', 'Qté', 'Total']], 
-                    body: sales.map(x => [new Date(x.date).toLocaleDateString(), x.buyerName, x.productName || x.finalBatchNumber, x.quantitySold, x.totalPrice.toFixed(2) + '€']), 
-                    theme:'grid', 
-                    headStyles:{fillColor:[22, 163, 74]},
-                    foot: [['', '', '', 'TOTAL', sales.reduce((a,b)=>a+(b.totalPrice||0),0).toFixed(2)+'€']]
+                    startY: y, head: [['Date', 'Client', 'Produit', 'Qté', 'Fmt', 'Paiement', 'Total']], 
+                    body: sales.map(x => [new Date(x.date).toLocaleDateString(), x.buyerName||'Direct', x.productName||x.finalBatchNumber, x.quantitySold, x.format||'-', x.paymentMethod, x.totalPrice.toFixed(2)+'€']), 
+                    theme:'grid', headStyles:{fillColor:[22, 163, 74]},
+                    foot: [['', '', '', '', '', 'TOTAL', sales.reduce((a,b)=>a+(b.totalPrice||0),0).toFixed(2)+'€']]
                 });
                 doc.save('ventes.pdf');
             }
         };
 
-        // --- 3. COMPOSANTS UI PARTAGÉS ---
+        // --- 3. COMPOSANTS PARTAGÉS ---
         
         const HiveIcon = ({ size = 24, className = "" }) => (
             <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -340,7 +362,6 @@
             );
         };
 
-        // Charts
         const SimpleDonutChart = ({ data }) => {
             const total = data.reduce((sum, item) => sum + item.value, 0);
             if (total === 0) return <div className="h-40 flex items-center justify-center text-gray-400 text-xs">Pas de données</div>;
@@ -387,9 +408,9 @@
             );
         };
 
-        // --- 4. MODULES FONCTIONNELS ---
+        // --- 4. MODULES METIERS ---
 
-        // >>> MODULE CLIENTS <<<
+        // >>> CLIENTS <<<
         const ClientManager = () => {
             const [clients, setClients] = useState([]);
             const [sales, setSales] = useState([]);
@@ -418,12 +439,13 @@
                         <h2 className="text-2xl font-bold flex items-center gap-2"><Users /> Gestion des Clients</h2>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 md:col-span-1 h-fit sticky top-4">
+                        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 md:col-span-1 h-fit">
                             <h3 className="font-bold text-gray-800 mb-4">{editingId ? "Modifier" : "Nouveau"}</h3>
                             <input type="text" placeholder="Nom *" className="w-full border p-2 rounded mb-2" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})}/>
                             <input type="text" placeholder="Tel" className="w-full border p-2 rounded mb-2" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})}/>
                             <input type="text" placeholder="Email" className="w-full border p-2 rounded mb-2" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})}/>
-                            <button onClick={handleSaveClient} className="w-full bg-blue-600 text-white p-2 rounded font-bold">Enregistrer</button>
+                            <input type="text" placeholder="Adresse" className="w-full border p-2 rounded mb-2" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})}/>
+                            <button onClick={handleSaveClient} className="w-full bg-blue-600 text-white p-2 rounded font-bold">{editingId?'Mettre à jour':'Enregistrer'}</button>
                         </div>
                         <div className="bg-white p-6 rounded-xl shadow-sm md:col-span-2">
                             <input type="text" placeholder="Rechercher..." className="w-full border p-2 rounded mb-4" value={searchTerm} onChange={e => setSearchTerm(e.target.value)}/>
@@ -447,7 +469,7 @@
             );
         };
 
-        // >>> MODULE DEPENSES <<<
+        // >>> DEPENSES <<<
         const Expenses = () => {
             const [expenses, setExpenses] = useState([]);
             const [newExpense, setNewExpense] = useState({ date: new Date().toISOString().split('T')[0], store: '', description: '', category: 'MATERIEL', amount: '' });
@@ -488,7 +510,7 @@
             );
         };
 
-        // >>> MODULE ELEVAGE <<<
+        // >>> ELEVAGE <<<
         const BreedingRegister = () => {
             const [activeTab, setActiveTab] = useState('APIARY');
             const [apiaries, setApiaries] = useState([]);
@@ -496,14 +518,13 @@
             const [interventions, setInterventions] = useState([]);
             const [feedings, setFeedings] = useState([]);
             const [movements, setMovements] = useState([]);
-            const [newApiary, setNewApiary] = useState({name:'', location:''});
-            const [newHive, setNewHive] = useState({name:'', count:1, apiaryId:''});
+            
             const [newInt, setNewInt] = useState({date: new Date().toISOString().split('T')[0], drugName: '', batchNumber: '', quantity: '', apiaryId: ''});
             const [newFeeding, setNewFeeding] = useState({date: new Date().toISOString().split('T')[0], foodType:'', quantity:'', apiaryId:''});
-            const [newMov, setNewMov] = useState({date: new Date().toISOString().split('T')[0], type:'Transhumance', originId:'', destId:'', quantity:1});
+            const [newMov, setNewMov] = useState({date: new Date().toISOString().split('T')[0], type:'Transhumance', description:'', originApiaryId:'', destinationApiaryId:'', quantity:1});
 
-            useEffect(() => { refreshData(); }, []);
-            const refreshData = () => {
+            useEffect(() => { refresh(); }, []);
+            const refresh = () => { 
                 setApiaries(Storage.getApiaries()); 
                 setHives(Storage.hives.getAll()); 
                 setInterventions(Storage.interventions.getAll());
@@ -520,31 +541,16 @@
                             </button>
                         ))}
                     </div>
-                    
                     {activeTab === 'APIARY' && (
-                        <div>
-                             <div className="bg-white p-4 rounded-xl border mb-4 flex gap-2">
-                                <input placeholder="Nom Rucher" className="border p-2 rounded flex-1" value={newApiary.name} onChange={e=>setNewApiary({...newApiary,name:e.target.value})}/>
-                                <button onClick={()=>{ if(newApiary.name){Storage.saveApiary({...newApiary,id:Storage.generateId()}); setNewApiary({name:'',location:''}); refreshData();} }} className="bg-honey-500 text-white px-4 rounded"><Plus/></button>
-                             </div>
-                             {apiaries.map(apiary => (
-                                <div key={apiary.id} className="bg-white border rounded-xl p-4 mb-2">
-                                    <div className="flex justify-between">
-                                        <h3 className="font-bold text-lg">{apiary.name}</h3>
-                                        <button onClick={()=>{ if(confirm('Supprimer?')) {Storage.deleteApiary(apiary.id); refreshData();} }}><Trash2 size={16} className="text-gray-300"/></button>
-                                    </div>
-                                    <div className="flex gap-2 mt-2 items-center">
-                                        <input placeholder="Ajouter ruche..." className="border p-1 rounded text-sm" id={`hive_${apiary.id}`}/>
-                                        <button onClick={()=>{
-                                            const name = document.getElementById(`hive_${apiary.id}`).value;
-                                            if(name) { Storage.hives.add({id:Storage.generateId(), name, apiaryId:apiary.id}); refreshData(); document.getElementById(`hive_${apiary.id}`).value='';}
-                                        }} className="bg-blue-100 text-blue-600 px-2 rounded text-sm font-bold">+</button>
-                                    </div>
-                                    <div className="flex flex-wrap gap-2 mt-3">
+                        <div className="space-y-2">
+                            {apiaries.map(apiary => (
+                                <div key={apiary.id} className="bg-white border rounded-xl p-4">
+                                    <h3 className="font-bold text-lg">{apiary.name}</h3>
+                                    <p className="text-gray-500 text-xs mb-2">{apiary.location}</p>
+                                    <div className="flex flex-wrap gap-2">
                                         {hives.filter(h=>h.apiaryId===apiary.id).map(hive => (
                                             <span key={hive.id} className="px-2 py-1 bg-honey-50 border border-honey-100 rounded text-xs font-bold text-honey-700 flex items-center gap-1">
                                                 <HiveIcon size={12}/> {hive.name}
-                                                <button onClick={()=>{Storage.hives.delete(hive.id); refreshData();}} className="ml-1 text-red-300">x</button>
                                             </span>
                                         ))}
                                     </div>
@@ -552,7 +558,6 @@
                             ))}
                         </div>
                     )}
-                    
                     {activeTab === 'SANITARY' && (
                         <div>
                              <div className="bg-white p-4 rounded-xl border mb-4 shadow-sm">
@@ -560,53 +565,61 @@
                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                                     <input type="date" className="border p-2 rounded" value={newInt.date} onChange={e=>setNewInt({...newInt, date:e.target.value})}/>
                                     <select className="border p-2 rounded" value={newInt.apiaryId} onChange={e=>setNewInt({...newInt, apiaryId:e.target.value})}>
-                                        <option value="">Choisir Rucher...</option>
+                                        <option value="">Rucher...</option>
                                         {apiaries.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}
                                     </select>
-                                    <input type="text" placeholder="Médicament (ex: Apivar)" className="border p-2 rounded" value={newInt.drugName} onChange={e=>setNewInt({...newInt, drugName:e.target.value})}/>
-                                    <input type="text" placeholder="N° Lot (OBLIGATOIRE)" className="border-2 border-red-200 p-2 rounded" value={newInt.batchNumber} onChange={e=>setNewInt({...newInt, batchNumber:e.target.value})}/>
+                                    <input type="text" placeholder="Médicament" className="border p-2 rounded" value={newInt.drugName} onChange={e=>setNewInt({...newInt, drugName:e.target.value})}/>
+                                    <input type="text" placeholder="N° Lot" className="border p-2 rounded" value={newInt.batchNumber} onChange={e=>setNewInt({...newInt, batchNumber:e.target.value})}/>
                                  </div>
-                                 <button onClick={()=>{ if(newInt.drugName && newInt.batchNumber){Storage.interventions.add({...newInt, id:Storage.generateId()}); refreshData();} }} className="w-full bg-red-600 text-white p-2 rounded font-bold mt-2">Enregistrer Traitement</button>
+                                 <button onClick={()=>{if(newInt.drugName){Storage.interventions.add({...newInt, id:Storage.generateId()}); refresh();}}} className="w-full bg-red-600 text-white p-2 rounded font-bold mt-2">Enregistrer</button>
                              </div>
                              <div className="space-y-2">
-                                 {interventions.map(i => (
-                                     <div key={i.id} className="p-3 bg-white border rounded shadow-sm">
-                                         <div className="font-bold">{i.drugName} <span className="text-gray-400 font-normal">({apiaries.find(a=>a.id===i.apiaryId)?.name || '?'})</span></div>
-                                         <div className="text-xs text-gray-500">Lot: {i.batchNumber} | {new Date(i.date).toLocaleDateString()}</div>
-                                     </div>
-                                 ))}
+                                 {interventions.map(i => (<div key={i.id} className="p-3 bg-white border rounded shadow-sm"><div className="font-bold">{i.drugName}</div><div className="text-xs text-gray-500">Lot: {i.batchNumber} | {new Date(i.date).toLocaleDateString()}</div><button onClick={()=>{Storage.interventions.delete(i.id); refresh();}} className="text-red-500 text-xs">Supprimer</button></div>))}
                              </div>
                         </div>
                     )}
-
                     {activeTab === 'FEEDING' && (
                         <div>
-                             <div className="bg-white p-4 rounded-xl border mb-4 shadow-sm">
+                             <div className="bg-white p-4 rounded-xl border mb-4">
                                  <h3 className="font-bold mb-2">Nourrissement</h3>
                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                                     <input type="date" className="border p-2 rounded" value={newFeeding.date} onChange={e=>setNewFeeding({...newFeeding, date:e.target.value})}/>
                                     <select className="border p-2 rounded" value={newFeeding.apiaryId} onChange={e=>setNewFeeding({...newFeeding, apiaryId:e.target.value})}>
-                                        <option value="">Choisir Rucher...</option>
+                                        <option value="">Rucher...</option>
                                         {apiaries.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}
                                     </select>
-                                    <input type="text" placeholder="Type (Sirop, Candi...)" className="border p-2 rounded" value={newFeeding.foodType} onChange={e=>setNewFeeding({...newFeeding, foodType:e.target.value})}/>
+                                    <input type="text" placeholder="Type" className="border p-2 rounded" value={newFeeding.foodType} onChange={e=>setNewFeeding({...newFeeding, foodType:e.target.value})}/>
                                     <input type="text" placeholder="Quantité" className="border p-2 rounded" value={newFeeding.quantity} onChange={e=>setNewFeeding({...newFeeding, quantity:e.target.value})}/>
                                  </div>
-                                 <button onClick={()=>{ if(newFeeding.foodType){Storage.feedings.add({...newFeeding, id:Storage.generateId()}); refreshData();} }} className="w-full bg-amber-500 text-white p-2 rounded font-bold mt-2">Enregistrer</button>
+                                 <button onClick={()=>{if(newFeeding.foodType){Storage.feedings.add({...newFeeding, id:Storage.generateId()}); refresh();}}} className="w-full bg-amber-500 text-white p-2 rounded font-bold mt-2">Enregistrer</button>
                              </div>
-                             {feedings.map(f => (
-                                 <div key={f.id} className="p-3 bg-white border rounded shadow-sm mb-2">
-                                     <div className="font-bold">{f.foodType} - {f.quantity}</div>
-                                     <div className="text-xs text-gray-500">{apiaries.find(a=>a.id===f.apiaryId)?.name} | {new Date(f.date).toLocaleDateString()}</div>
-                                 </div>
-                             ))}
+                             <div className="space-y-2">
+                                 {feedings.map(f => (<div key={f.id} className="p-3 bg-white border rounded"><div className="font-bold">{f.foodType} - {f.quantity}</div><div className="text-xs text-gray-500">{new Date(f.date).toLocaleDateString()}</div></div>))}
+                             </div>
                         </div>
+                    )}
+                    {activeTab === 'MOVEMENTS' && (
+                       <div>
+                         <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2"><Truck className="text-honey-600" /> Mouvements</h2>
+                         <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 mb-4">
+                           <input type="date" className="border p-2 rounded w-full mb-2" value={newMov.date} onChange={e => setNewMov({ ...newMov, date: e.target.value })} />
+                           <input type="text" placeholder="Description" className="border p-2 rounded w-full mb-2" value={newMov.description} onChange={e => setNewMov({ ...newMov, description: e.target.value })} />
+                           <div className="flex gap-2 mb-2">
+                               <select className="border p-2 rounded w-full" value={newMov.originApiaryId} onChange={e => setNewMov({ ...newMov, originApiaryId: e.target.value })}><option value="">Départ</option>{apiaries.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}</select>
+                               <select className="border p-2 rounded w-full" value={newMov.destinationApiaryId} onChange={e => setNewMov({ ...newMov, destinationApiaryId: e.target.value })}><option value="">Arrivée</option>{apiaries.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}</select>
+                           </div>
+                           <button onClick={()=>{if(newMov.description){Storage.movements.add({...newMov, id:Storage.generateId()}); refresh();}}} className="bg-blue-600 text-white p-2 rounded w-full font-bold">Enregistrer</button>
+                        </div>
+                        <div className="space-y-2">
+                            {movements.map(m => (<div key={m.id} className="p-3 border-b bg-white rounded"><span className="font-bold text-blue-800">{m.type}</span>: {m.description} ({m.quantity} ruches) <button onClick={() => { Storage.movements.delete(m.id); refresh(); }} className="text-red-400 float-right"><Trash2 size={16} /></button></div>))}
+                        </div>
+                       </div>
                     )}
                 </div>
             );
         };
 
-        // >>> MODULE MIELLERIE & CAISSE (Logic Integrated from HoneyTraceability) <<<
+        // >>> MIELLERIE & CAISSE (Logic Integrated from HoneyTraceability) <<<
         const HoneyTraceability = ({ initialTab }) => {
             const [activeTab, setActiveTab] = useState(initialTab || 'POS');
             const [products, setProducts] = useState([]);
