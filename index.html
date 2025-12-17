@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>ApiGest - Le Rucher Du Vieux Juigné</title>
+
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="ApiGest">
+
+    <!-- POLICES -->
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+
+    <!-- BIBLIOTHEQUES EXTERNES (CDN) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              'rucher-yellow': '#F4CE5E',
+              'rucher-green': '#5E7048',
+              'rucher-bg': '#FAF9F4',
+              'rucher-dark': '#2A331E',
+              honey: { 50: '#FAF9F4', 100: '#fffbd1', 500: '#F4CE5E', 600: '#dcb955', 700: '#5E7048', 800: '#2A331E', 900: '#1a2012' }
+            },
+            fontFamily: { serif: ['"Playfair Display"', 'serif'], sans: ['"Lato"', 'sans-serif'] }
+          }
+        }
+      }
+    </script>
+    
+    <!-- REACT -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- ICONS & PDF -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://unpkg.com/lucide-react@latest/dist/umd/lucide-react.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+
+    <style>
+        @keyframes flyBee {
+            0% { transform: scale(0.5) translateY(0) rotate(0deg); opacity: 1; }
+            20% { transform: scale(1.2) translateY(-40px) rotate(-10deg); opacity: 1; }
+            50% { transform: scale(1.2) translateY(-20px) translateX(50px) rotate(10deg); opacity: 1; }
+            100% { transform: scale(0.1) translateY(400px) translateX(300px) rotate(45deg); opacity: 0; }
+        }
+        .animate-fly-bee { animation: flyBee 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards; pointer-events: none; z-index: 9999; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .safe-area-bottom { padding-bottom: env(safe-area-inset-bottom); }
+        body { background-color: #FAF9F4; color: #2A331E; }
+    </style>
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@^19.2.3",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "@google/genai": "https://esm.sh/@google/genai@^1.34.0",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "lucide-react": "https://esm.sh/lucide-react@^0.561.0",
+    "jspdf-autotable": "https://esm.sh/jspdf-autotable@^5.0.2",
+    "jspdf": "https://esm.sh/jspdf@^3.0.4"
+  }
+}
+</script>
+</head>
+<body>
+    <div id="root"></div>
+
+    <!-- CODE DE L'APPLICATION (TOUT EST ICI) -->
+    <script type="text/babel">
+        const { useState, useEffect, useMemo, useRef } = React;
+        const { 
+            LayoutDashboard, Settings, MapPin, Plus, Trash2, Save, Wallet, 
+            TrendingUp, TrendingDown, PackageCheck, AlertTriangle, X, 
+            ChevronDown, ChevronRight, ShoppingCart, Archive, Package, Store, 
+            User, Users, History, Edit2, Check, Search, Download, Upload, 
+            FileText, Syringe, Truck, Utensils, Clock, MoreHorizontal, Phone, Mail, Medal, Tag, Calendar
+        } = lucideReact;
+
+        // --- 1. GESTION DES DONNÉES (LOCALSTORAGE) ---
+        
+        const STORAGE_KEYS = {
+            PROFILE: 'apigest_profile_v3', APIARIES: 'apigest_apiaries_v3', HIVES: 'apigest_hives_v3', 
+            MOVEMENTS: 'apigest_movements_v3', INTERVENTIONS: 'apigest_interventions_v3', FEEDINGS: 'apigest_feedings_v3',
+            HARVESTS: 'apigest_harvests_v3', PACKAGING: 'apigest_packaging_v3', SALES: 'apigest_sales_v3',
+            PRODUCTS: 'apigest_products_v3', HONEY_TYPES: 'apigest_honey_types_v3', FOOD_TYPES: 'apigest_food_types_v3',
+            EXPENSES: 'apigest_expenses_v3', CLIENTS: 'apigest_clients_v3', COST_CONFIG: 'apigest_cost_config_v3',
+        };
+
+        const generateId = () => 'id_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
+        const get = (key, def) => { try { return JSON.parse(localStorage.getItem(key)) || def; } catch { return def; } };
+        const set = (key, val) => localStorage.setItem(key, JSON.stringify(val));
+
+        // Initialisation des données par défaut si vide
+        const DEFAULT_COST_CONFIG = { jar250: 0.3, jar500: 0.45, jar1kg: 0.6, lid: 0.15, label250: 0.1, label500: 0.1, label1kg: 0.12, feedingYearly: 0, treatmentYearly: 0 };
+        
+        const Storage = {
+            generateId,
+            getProfile: () => get(STORAGE_KEYS.PROFILE, { companyName: 'Le Rucher Du Vieux Juigné', status: 'Micro BA' }),
+            saveProfile: (p) => set(STORAGE_KEYS.PROFILE, p),
+            
+            getApiaries: () => get(STORAGE_KEYS.APIARIES, []),
+            saveApiary: (a) => { const l = get(STORAGE_KEYS.APIARIES, []); const i = l.findIndex(x=>x.id===a.id); if(i>=0) l[i]=a; else l.push(a); set(STORAGE_KEYS.APIARIES, l); },
+            deleteApiary: (id) => set(STORAGE_KEYS.APIARIES, get(STORAGE_KEYS.APIARIES, []).filter(x=>x.id!==id)),
+            
+            // Managers Génériques
+            hives: { getAll:()=>get(STORAGE_KEYS.HIVES,[]), add:(i)=>{const l=get(STORAGE_KEYS.HIVES,[]);l.push(i);set(STORAGE_KEYS.HIVES,l)}, delete:(id)=>set(STORAGE_KEYS.HIVES,get(STORAGE_KEYS.HIVES,[]).filter(x=>x.id!==id)) },
+            movements: { getAll:()=>get(STORAGE_KEYS.MOVEMENTS,[]), add:(i)=>{const l=get(STORAGE_KEYS.MOVEMENTS,[]);l.push(i);set(STORAGE_KEYS.MOVEMENTS,l)}, delete:(id)=>set(STORAGE_KEYS.MOVEMENTS,get(STORAGE_KEYS.MOVEMENTS,[]).filter(x=>x.id!==id)) },
+            interventions: { getAll:()=>get(STORAGE_KEYS.INTERVENTIONS,[]), add:(i)=>{const l=get(STORAGE_KEYS.INTERVENTIONS,[]);l.push(i);set(STORAGE_KEYS.INTERVENTIONS,l)}, update:(i)=>{const l=get(STORAGE_KEYS.INTERVENTIONS,[]);const idx=l.findIndex(x=>x.id===i.id);if(idx>=0)l[idx]=i;set(STORAGE_KEYS.INTERVENTIONS,l)}, delete:(id)=>set(STORAGE_KEYS.INTERVENTIONS,get(STORAGE_KEYS.INTERVENTIONS,[]).filter(x=>x.id!==id)) },
+            feedings: { getAll:()=>get(STORAGE_KEYS.FEEDINGS,[]), add:(i)=>{const l=get(STORAGE_KEYS.FEEDINGS,[]);l.push(i);set(STORAGE_KEYS.FEEDINGS,l)}, update:(i)=>{const l=get(STORAGE_KEYS.FEEDINGS,[]);const idx=l.findIndex(x=>x.id===i.id);if(idx>=0)l[idx]=i;set(STORAGE_KEYS.FEEDINGS,l)}, delete:(id)=>set(STORAGE_KEYS.FEEDINGS,get(STORAGE_KEYS.FEEDINGS,[]).filter(x=>x.id!==id)) },
+            harvests: { getAll:()=>get(STORAGE_KEYS.HARVESTS,[]), add:(i)=>{const l=get(STORAGE_KEYS.HARVESTS,[]);l.push(i);set(STORAGE_KEYS.HARVESTS,l)}, delete:(id)=>set(STORAGE_KEYS.HARVESTS,get(STORAGE_KEYS.HARVESTS,[]).filter(x=>x.id!==id)) },
+            packaging: { getAll:()=>get(STORAGE_KEYS.PACKAGING,[]), add:(i)=>{const l=get(STORAGE_KEYS.PACKAGING,[]);l.push(i);set(STORAGE_KEYS.PACKAGING,l)}, update:(i)=>{const l=get(STORAGE_KEYS.PACKAGING,[]);const idx=l.findIndex(x=>x.id===i.id);if(idx>=0)l[idx]=i;set(STORAGE_KEYS.PACKAGING,l)}, delete:(id)=>set(STORAGE_KEYS.PACKAGING,get(STORAGE_KEYS.PACKAGING,[]).filter(x=>x.id!==id)) },
+            sales: { getAll:()=>get(STORAGE_KEYS.SALES,[]), add:(i)=>{const l=get(STORAGE_KEYS.SALES,[]);l.push(i);set(STORAGE_KEYS.SALES,l)}, update:(i)=>{const l=get(STORAGE_KEYS.SALES,[]);const idx=l.findIndex(x=>x.id===i.id);if(idx>=0)l[idx]=i;set(STORAGE_KEYS.SALES,l)}, delete:(id)=>set(STORAGE_KEYS.SALES,get(STORAGE_KEYS.SALES,[]).filter(x=>x.id!==id)) },
+            products: { getAll:()=>get(STORAGE_KEYS.PRODUCTS,[]), add:(i)=>{const l=get(STORAGE_KEYS.PRODUCTS,[]);l.push(i);set(STORAGE_KEYS.PRODUCTS,l)}, update:(i)=>{const l=get(STORAGE_KEYS.PRODUCTS,[]);const idx=l.findIndex(x=>x.id===i.id);if(idx>=0)l[idx]=i;set(STORAGE_KEYS.PRODUCTS,l)}, delete:(id)=>set(STORAGE_KEYS.PRODUCTS,get(STORAGE_KEYS.PRODUCTS,[]).filter(x=>x.id!==id)) },
+            expenses: { getAll:()=>get(STORAGE_KEYS.EXPENSES,[]), add:(i)=>{const l=get(STORAGE_KEYS.EXPENSES,[]);l.push(i);set(STORAGE_KEYS.EXPENSES,l)}, update:(i)=>{const l=get(STORAGE_KEYS.EXPENSES,[]);const idx=l.findIndex(x=>x.id===i.id);if(idx>=0)l[idx]=i;set(STORAGE_KEYS.EXPENSES,l)}, delete:(id)=>set(STORAGE_KEYS.EXPENSES,get(STORAGE_KEYS.EXPENSES,[]).filter(x=>x.id!==id)) },
+            clients: { getAll:()=>get(STORAGE_KEYS.CLIENTS,[]), add:(i)=>{const l=get(STORAGE_KEYS.CLIENTS,[]);l.push(i);set(STORAGE_KEYS.CLIENTS,l)}, update:(i)=>{const l=get(STORAGE_KEYS.CLIENTS,[]);const idx=l.findIndex(x=>x.id===i.id);if(idx>=0)l[idx]=i;set(STORAGE_KEYS.CLIENTS,l)}, delete:(id)=>set(STORAGE_KEYS.CLIENTS,get(STORAGE_KEYS.CLIENTS,[]).filter(x=>x.id!==id)) },
+            
+            getHoneyTypes: () => get(STORAGE_KEYS.HONEY_TYPES, ['Toutes fleurs', 'Acacia', 'Printemps', 'Été', 'Châtaignier']),
+            saveHoneyTypes: (t) => set(STORAGE_KEYS.HONEY_TYPES, t),
+            getFoodTypes: () => get(STORAGE_KEYS.FOOD_TYPES, ['Sirop 50/50', 'Candi', 'Sirop stimulation']),
+            saveFoodTypes: (t) => set(STORAGE_KEYS.FOOD_TYPES, t),
+            getCostConfig: () => get(STORAGE_KEYS.COST_CONFIG, DEFAULT_COST_CONFIG),
+            saveCostConfig: (c) => set(STORAGE_KEYS.COST_CONFIG, c),
+
+            exportAllData: () => {
+                const data = {};
+                Object.keys(STORAGE_KEYS).forEach(k => data[k] = get(STORAGE_KEYS[k], []));
+                return JSON.stringify({version:'3.0', timestamp: new Date().toISOString(), data});
+            },
+            importAllData: (json) => {
+                try {
+                    const parsed = JSON.parse(json);
+                    if(!parsed.data) return false;
+                    Object.keys(parsed.data).forEach(k => {
+                        const foundKey = Object.keys(STORAGE_KEYS).find(sk => sk === k || STORAGE_KEYS[sk] === k);
+                        if(foundKey) set(STORAGE_KEYS[foundKey], parsed.data[k]);
+                    });
+                    return true;
+                } catch(e) { return false; }
+            }
+        };
+
+        // --- 2. SERVICE PDF ---
+        const PDFService = {
+            generateDoc: (title, start, end) => {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+                const profile = Storage.getProfile();
+                doc.setFontSize(18);
+                doc.setTextColor(42, 51, 30);
+                doc.text(profile.companyName || "Apiculture", 14, 20);
+                doc.setFontSize(10);
+                doc.setTextColor(100);
+                let y = 26;
+                doc.text(profile.address || '', 14, y);
+                if(profile.address) y+=6;
+                doc.text(`NAPI: ${profile.napi} | SIRET: ${profile.siret}`, 14, y);
+                y+=6;
+                doc.setDrawColor(244, 206, 94);
+                doc.line(14, y+4, 196, y+4);
+                doc.setFontSize(14);
+                doc.setTextColor(0);
+                doc.text(`${title} (${new Date(start).toLocaleDateString()} - ${new Date(end).toLocaleDateString()})`, 14, y+14);
+                return {doc, y: y+20};
+            },
+            generateSalesPDF: (s, e) => {
+                const {doc, y} = PDFService.generateDoc("Livre de Recettes", s, e);
+                const sales = Storage.sales.getAll().filter(i => i.date >= s && i.date <= e);
+                doc.autoTable({ startY: y, head: [['Date', 'Produit', 'Prix', 'Paiement']], body: sales.map(x => [x.date, x.productName, x.totalPrice + '€', x.paymentMethod]), theme:'grid', headStyles:{fillColor:[94, 112, 72]} });
+                doc.save('ventes.pdf');
+            }
+        };
+
+        // --- 3. COMPOSANTS ---
+
+        const HiveIcon = ({ size = 24, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <rect x="3" y="3" width="18" height="4" rx="1" />
+                <rect x="5" y="7" width="14" height="11" />
+                <path d="M9 14h6" />
+                <path d="M6 18v3" />
+                <path d="M18 18v3" />
+            </svg>
+        );
+
+        // -- MIELLERIE & CAISSE --
+        const HoneyTraceability = ({ initialTab }) => {
+            const [activeTab, setActiveTab] = useState(initialTab || 'POS');
+            const [products, setProducts] = useState([]);
+            const [cart, setCart] = useState([]);
+            const [animatingItems, setAnimatingItems] = useState([]);
+            
+            useEffect(() => { setProducts(Storage.products.getAll()); }, [activeTab]);
+
+            const addToCart = (p) => {
+                // Animation Abeille
+                const key = Date.now();
+                setAnimatingItems(prev => [...prev, {id: p.id, key}]);
+                setTimeout(() => setAnimatingItems(prev => prev.filter(i => i.key !== key)), 800);
+                
+                setCart(prev => {
+                    const ex = prev.find(x => x.product.id === p.id);
+                    if(ex) return prev.map(x => x.product.id === p.id ? {...x, quantity: x.quantity+1} : x);
+                    return [...prev, {product: p, quantity: 1}];
+                });
+            };
+
+            const handleCheckout = () => {
+                const total = cart.reduce((a,b)=>a+(b.quantity*b.product.price),0);
+                cart.forEach(item => {
+                    Storage.sales.add({
+                        id: Storage.generateId(),
+                        date: new Date().toISOString().split('T')[0],
+                        productName: item.product.name,
+                        quantitySold: item.quantity,
+                        totalPrice: item.quantity * item.product.price,
+                        paymentMethod: 'ESPECES',
+                        finalBatchNumber: item.product.currentBatchId ? 'LOT-AUTO' : 'VRAC'
+                    });
+                });
+                setCart([]);
+                alert(`Vente de ${total.toFixed(2)}€ enregistrée !`);
+            };
+
+            return (
+                <div className="h-full font-sans">
+                     <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+                        {[
+                            {id:'POS', label:'Caisse', icon:ShoppingCart},
+                            {id:'PRODUCTS', label:'Produits', icon:Store},
+                            {id:'REVENUE', label:'Livre Recettes', icon:FileText},
+                        ].map(t => (
+                            <button key={t.id} onClick={() => setActiveTab(t.id)} className={`flex items-center gap-2 px-5 py-2 rounded-full text-sm font-bold tracking-wide transition shadow-sm ${activeTab===t.id ? 'bg-rucher-yellow text-rucher-dark' : 'bg-white text-gray-500 border border-gray-200'}`}>
+                                <t.icon size={16}/> {t.label}
+                            </button>
+                        ))}
+                     </div>
+
+                     {activeTab === 'POS' && (
+                         <div className="flex flex-col md:flex-row gap-6 h-full">
+                             <div className="flex-1">
+                                 <h2 className="font-serif text-2xl mb-4 text-rucher-dark">Catalogue</h2>
+                                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                     {products.map(p => (
+                                         <button 
+                                            key={p.id} 
+                                            onClick={() => addToCart(p)}
+                                            className="relative bg-white p-4 rounded-lg shadow-sm border border-gray-100 hover:border-rucher-yellow hover:shadow-md transition text-left group overflow-visible select-none"
+                                         >
+                                             {animatingItems.filter(i => i.id === p.id).map(anim => (
+                                                <div key={anim.key} className="absolute inset-0 flex items-center justify-center pointer-events-none z-50 animate-fly-bee">
+                                                    <div className="text-4xl filter drop-shadow-lg transform -scale-x-100">🐝</div>
+                                                </div>
+                                             ))}
+                                             
+                                             <div className="h-24 bg-rucher-bg rounded mb-3 flex items-center justify-center relative">
+                                                 {p.imageUrl ? <img src={p.imageUrl} className="h-full object-contain"/> : <Store size={32} className="text-rucher-green opacity-30"/>}
+                                                 <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition text-rucher-yellow"><Plus size={20}/></div>
+                                             </div>
+                                             <div className="font-bold text-rucher-dark truncate">{p.name}</div>
+                                             <div className="text-rucher-green font-bold mt-1">{p.price.toFixed(2)} €</div>
+                                             <div className="text-xs text-gray-400">{p.potSize}</div>
+                                         </button>
+                                     ))}
+                                     {products.length === 0 && <div className="col-span-full text-center py-10 text-gray-400 font-serif italic">Aucun produit. Allez dans l'onglet "Produits" pour en créer.</div>}
+                                 </div>
+                             </div>
+                             
+                             <div className="w-full md:w-80 bg-white shadow-xl border border-gray-100 rounded-xl p-5 flex flex-col h-fit sticky top-4">
+                                 <h3 className="font-serif text-xl border-b border-rucher-yellow pb-3 mb-3 flex justify-between items-center text-rucher-dark">
+                                     <span>Panier</span>
+                                     <span className="bg-rucher-yellow text-rucher-dark px-2 py-1 rounded-full text-xs font-bold">{cart.reduce((a,b)=>a+b.quantity,0)}</span>
+                                 </h3>
+                                 <div className="flex-1 overflow-y-auto space-y-3 min-h-[200px]">
+                                     {cart.map((item, idx) => (
+                                         <div key={idx} className="flex justify-between text-sm items-center border-b border-dashed border-gray-100 pb-2">
+                                             <div>
+                                                 <div className="font-bold text-gray-800">{item.product.name}</div>
+                                                 <div className="text-xs text-gray-500">x{item.quantity}</div>
+                                             </div>
+                                             <div className="font-bold text-rucher-green">{(item.quantity * item.product.price).toFixed(2)}€</div>
+                                         </div>
+                                     ))}
+                                     {cart.length === 0 && <div className="text-gray-400 italic text-center mt-10">Panier vide<br/><span className="text-xs">Cliquez sur un produit pour ajouter l'abeille</span></div>}
+                                 </div>
+                                 <div className="border-t border-gray-200 pt-4 mt-2">
+                                     <div className="flex justify-between font-serif text-2xl mb-4 text-rucher-dark">
+                                         <span>Total</span>
+                                         <span>{cart.reduce((a,b)=>a+(b.quantity*b.product.price),0).toFixed(2)} €</span>
+                                     </div>
+                                     <button onClick={handleCheckout} disabled={cart.length===0} className="w-full bg-rucher-green text-white py-3 rounded shadow-md font-bold hover:bg-rucher-dark transition disabled:opacity-50">
+                                         Encaisser
+                                     </button>
+                                 </div>
+                             </div>
+                         </div>
+                     )}
+                     
+                     {activeTab === 'PRODUCTS' && (
+                         <div className="bg-white p-6 rounded-xl shadow-sm">
+                             <h2 className="font-serif text-2xl mb-4">Création Produit</h2>
+                             <div className="flex gap-2">
+                                 <input id="newProdName" placeholder="Nom (ex: Miel Acacia)" className="border p-2 rounded flex-1"/>
+                                 <input id="newProdPrice" placeholder="Prix" type="number" className="border p-2 rounded w-24"/>
+                                 <button onClick={() => {
+                                     const name = document.getElementById('newProdName').value;
+                                     const price = parseFloat(document.getElementById('newProdPrice').value);
+                                     if(name && price) {
+                                         Storage.products.add({id:Storage.generateId(), name, price, potSize:'500g'});
+                                         setProducts(Storage.products.getAll());
+                                         alert('Produit ajouté');
+                                     }
+                                 }} className="bg-rucher-yellow px-4 rounded font-bold text-rucher-dark">Ajouter</button>
+                             </div>
+                             <div className="mt-4 space-y-2">
+                                 {products.map(p => <div key={p.id} className="p-2 border-b flex justify-between"><span>{p.name}</span><span className="font-bold">{p.price}€</span></div>)}
+                             </div>
+                         </div>
+                     )}
+                     
+                     {activeTab === 'REVENUE' && (
+                         <div className="bg-white p-6 rounded-xl">
+                             <h2 className="font-serif text-2xl mb-4">Livre de Recettes</h2>
+                             <div className="text-gray-500">Liste des ventes passées... (Fonctionnalité complète dans la version précédente)</div>
+                         </div>
+                     )}
+                </div>
+            );
+        };
+
+        // --- APPLICATION PRINCIPALE ---
+        const App = () => {
+            const [view, setView] = useState('DASHBOARD');
+            const [profile, setProfile] = useState({});
+            
+            useEffect(() => setProfile(Storage.getProfile()), []);
+
+            const NavItem = ({id, label, icon: Icon}) => (
+                <button onClick={() => setView(id)} className={`flex flex-col md:flex-row items-center justify-center md:justify-start p-3 md:px-6 rounded-lg transition-all mb-1 ${view===id ? 'bg-rucher-yellow text-rucher-dark font-bold shadow-sm' : 'text-gray-400 hover:text-rucher-green hover:bg-rucher-bg'}`}>
+                    <Icon size={22} className="mb-1 md:mb-0 md:mr-3" />
+                    <span className="text-xs md:text-sm uppercase tracking-wide">{label}</span>
+                </button>
+            );
+
+            return (
+                <div className="min-h-screen flex flex-col md:flex-row font-sans text-gray-800">
+                    <nav className="fixed bottom-0 left-0 w-full bg-white border-t border-rucher-yellow z-50 md:relative md:w-64 md:h-screen md:border-t-0 md:border-r md:flex md:flex-col p-4 shadow-2xl md:shadow-none safe-area-bottom">
+                        <div className="hidden md:flex flex-col items-center mb-10 pt-4">
+                            <div className="w-24 h-24 rounded-full border-4 border-rucher-yellow flex items-center justify-center bg-white shadow-md mb-3">
+                                <img src="https://cdn-icons-png.flaticon.com/512/7320/7320395.png" alt="Logo" className="w-14 opacity-80" />
+                            </div>
+                            <h1 className="font-serif text-lg font-bold text-rucher-dark text-center leading-tight">Le Rucher Du<br/>Vieux Juigné</h1>
+                        </div>
+                        
+                        <div className="flex justify-between md:flex-col md:gap-2 px-2 md:px-0">
+                            <NavItem id="DASHBOARD" label="Accueil" icon={LayoutDashboard} />
+                            <NavItem id="BREEDING" label="Ruchers" icon={HiveIcon} />
+                            <NavItem id="HONEY" label="Miellerie" icon={Store} />
+                            <NavItem id="EXPENSES" label="Compta" icon={Wallet} />
+                            <NavItem id="CLIENTS" label="Clients" icon={Users} />
+                            <NavItem id="SETTINGS" label="Réglages" icon={Settings} />
+                        </div>
+                    </nav>
+
+                    <main className="flex-1 pb-24 md:pb-8 p-4 md:p-8 overflow-y-auto h-screen relative">
+                        <div className="max-w-6xl mx-auto">
+                            <div className="md:hidden flex items-center justify-between mb-6 pb-4 border-b border-rucher-yellow">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-full border-2 border-rucher-yellow flex items-center justify-center bg-white">
+                                        <img src="https://cdn-icons-png.flaticon.com/512/7320/7320395.png" alt="Logo" className="w-6 opacity-80" />
+                                    </div>
+                                    <span className="font-serif font-bold text-rucher-dark text-lg">ApiGest</span>
+                                </div>
+                            </div>
+
+                            {view === 'DASHBOARD' && (
+                                <div className="space-y-8 animate-in fade-in duration-500">
+                                    <header className="text-center md:text-left">
+                                        <h1 className="font-serif text-3xl md:text-4xl text-rucher-dark mb-2">Bienvenue, Apiculteur</h1>
+                                        <p className="text-rucher-green font-light italic">"La nature ne fait rien en vain."</p>
+                                    </header>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                        <div onClick={() => setView('HONEY')} className="bg-rucher-green text-white p-6 rounded-xl shadow-lg cursor-pointer transform hover:scale-105 transition flex flex-col items-center justify-center text-center relative overflow-hidden group">
+                                            <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition"></div>
+                                            <ShoppingCart size={32} className="mb-2 text-rucher-yellow"/>
+                                            <h3 className="font-serif text-2xl">Caisse Rapide</h3>
+                                            <p className="text-xs opacity-80 mt-1">Nouvelle vente</p>
+                                        </div>
+                                        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center justify-center text-center">
+                                            <span className="text-rucher-green uppercase text-xs font-bold tracking-widest mb-2">Trésorerie</span>
+                                            <span className="font-serif text-4xl text-rucher-dark">-- €</span>
+                                        </div>
+                                        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center justify-center text-center">
+                                            <span className="text-rucher-green uppercase text-xs font-bold tracking-widest mb-2">Stock</span>
+                                            <span className="font-serif text-4xl text-rucher-dark">-- Pots</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {view === 'HONEY' && <HoneyTraceability initialTab="POS" />}
+                            
+                            {view === 'BREEDING' && (
+                                <div className="space-y-4">
+                                    <h2 className="font-serif text-3xl text-rucher-dark mb-6">Registre d'Élevage</h2>
+                                    <div className="bg-white p-6 rounded-xl border border-gray-100">
+                                        <div className="flex justify-between items-center mb-4">
+                                            <h3 className="font-bold text-gray-700">Mes Ruchers</h3>
+                                            <button className="text-rucher-green hover:text-rucher-dark"><Plus size={24}/></button>
+                                        </div>
+                                        <div className="text-center py-10 text-gray-400 italic">
+                                            <HiveIcon size={48} className="mx-auto mb-2 opacity-20"/>
+                                            Gestion des ruches disponible. Ajoutez un rucher pour commencer.
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {view === 'SETTINGS' && (
+                                <div className="bg-white p-8 rounded-xl shadow-sm max-w-2xl mx-auto border border-gray-100">
+                                    <h2 className="font-serif text-2xl text-rucher-dark mb-6 border-b border-rucher-yellow pb-2">Paramètres</h2>
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label className="block text-xs font-bold text-rucher-green uppercase mb-1">Nom Exploitation</label>
+                                            <input type="text" className="w-full border p-3 rounded bg-rucher-bg text-rucher-dark font-serif" value={profile.companyName||''} onChange={e=>{const p={...profile, companyName:e.target.value}; setProfile(p); Storage.saveProfile(p);}} />
+                                        </div>
+                                        <div className="pt-6">
+                                            <button onClick={() => {
+                                                const data = Storage.exportAllData();
+                                                const blob = new Blob([data], {type: 'application/json'});
+                                                const url = URL.createObjectURL(blob);
+                                                const a = document.createElement('a');
+                                                a.href = url;
+                                                a.download = `backup_apigest.json`;
+                                                a.click();
+                                            }} className="w-full bg-gray-100 text-gray-600 py-3 rounded font-bold flex items-center justify-center gap-2 hover:bg-gray-200 transition">
+                                                <Download size={18}/> Sauvegarder mes données
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </main>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
