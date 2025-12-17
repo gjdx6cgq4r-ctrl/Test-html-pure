@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>ApiGest - Le Rucher Du Vieux Juigné</title>
 
-    <!-- CONFIGURATION APPLE PWA -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="ApiGest">
@@ -14,17 +13,13 @@
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
 
     <!-- LIBRAIRIES (CDN) -->
-    <!-- Tailwind CSS pour le style -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
         theme: {
           extend: {
             colors: {
-              'rucher-yellow': '#F4CE5E',
-              'rucher-green': '#5E7048',
-              'rucher-bg': '#FAF9F4',
-              'rucher-dark': '#2A331E',
+              'rucher-yellow': '#F4CE5E', 'rucher-green': '#5E7048', 'rucher-bg': '#FAF9F4', 'rucher-dark': '#2A331E',
               honey: { 50: '#FAF9F4', 100: '#fffbd1', 500: '#F4CE5E', 600: '#dcb955', 700: '#5E7048', 800: '#2A331E', 900: '#1a2012' }
             },
             fontFamily: { serif: ['"Playfair Display"', 'serif'], sans: ['"Lato"', 'sans-serif'] }
@@ -33,51 +28,34 @@
       }
     </script>
     
-    <!-- REACT & TOOLS (UMD Globals pour fonctionnement sans build) -->
+    <!-- REACT & BABEL (Pour exécuter le code directement) -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     
     <!-- ICONS & PDF -->
-    <!-- Lucide Icons (React Version UMD) -->
     <script src="https://unpkg.com/lucide-react@latest/dist/umd/lucide-react.min.js"></script>
-    <!-- JSPDF pour les rapports -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
 
     <style>
-        /* ANIMATIONS PERSONNALISÉES */
-        @keyframes flyBee {
-            0% { transform: scale(0.5) translateY(0) rotate(0deg); opacity: 1; }
-            20% { transform: scale(1.2) translateY(-40px) rotate(-10deg); opacity: 1; }
-            50% { transform: scale(1.2) translateY(-20px) translateX(50px) rotate(10deg); opacity: 1; }
-            100% { transform: scale(0.1) translateY(400px) translateX(300px) rotate(45deg); opacity: 0; }
-        }
-        .animate-fly-bee { animation: flyBee 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards; pointer-events: none; z-index: 9999; }
-        
         @keyframes flyCart {
             0% { transform: scale(0.5) translateY(0) rotate(0deg); opacity: 1; }
             40% { transform: scale(1.5) translateY(-30px) rotate(-10deg); opacity: 1; }
             100% { transform: scale(0.2) translateY(300px) translateX(200px) rotate(45deg); opacity: 0; }
         }
         .animate-fly-cart { animation: flyCart 0.8s ease-in-out forwards; pointer-events: none; z-index: 9999; }
-
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         .safe-area-bottom { padding-bottom: env(safe-area-inset-bottom); }
         body { background-color: #FAF9F4; color: #2A331E; }
-        
-        /* Utilitaires supplémentaires */
-        .animate-in { animation-fill-mode: both; animation-duration: 0.3s; }
-        .fade-in { animation-name: fadeIn; }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     </style>
 <script type="importmap">
 {
   "imports": {
     "react": "https://esm.sh/react@^19.2.3",
-    "react/": "https://esm.sh/react@^19.2.3/",
     "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react/": "https://esm.sh/react@^19.2.3/",
     "@google/genai": "https://esm.sh/@google/genai@^1.34.0",
     "lucide-react": "https://esm.sh/lucide-react@^0.561.0",
     "jspdf": "https://esm.sh/jspdf@^3.0.4",
@@ -92,8 +70,6 @@
     <script type="text/babel">
         // --- 0. VARIABLES GLOBALES & UTILITAIRES ---
         const { useState, useEffect, useMemo, useRef } = React;
-        
-        // Récupération des icônes depuis la librairie globale lucideReact
         const { 
             LayoutDashboard, Settings, MapPin, Plus, Trash2, Save, Wallet, 
             TrendingUp, TrendingDown, PackageCheck, AlertTriangle, X, 
@@ -103,7 +79,6 @@
             Tag, Calendar, BookOpen, Droplets, BookOpenText, Layers, Coins, ImagePlus, ArrowDown, ArrowUp, ArrowUpDown, PlusCircle, Loader2
         } = lucideReact;
 
-        // Utilitaires de base
         const generateId = () => 'id_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
         const normalizeString = (str) => (!str ? '' : str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '').trim());
         const getYearFromDateStr = (dateStr) => {
@@ -112,7 +87,6 @@
             return parts.length > 0 ? parseInt(parts[0]) : new Date(dateStr).getFullYear();
         };
 
-        // Compression d'image (Critique pour iPad/LocalStorage)
         const compressImage = (file) => {
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
@@ -122,7 +96,7 @@
                     img.src = event.target.result;
                     img.onload = () => {
                         const canvas = document.createElement('canvas');
-                        const MAX_WIDTH = 600; // Réduit pour optimiser
+                        const MAX_WIDTH = 600; 
                         const scaleSize = MAX_WIDTH / img.width;
                         if (scaleSize < 1) {
                             canvas.width = MAX_WIDTH;
@@ -141,33 +115,17 @@
             });
         };
 
-        // --- 1. SERVICE DE STOCKAGE (LocalStorage) ---
+        // --- 1. STORAGE SERVICE (Intégré) ---
         const STORAGE_KEYS = {
-            PROFILE: 'apigest_profile_v2',
-            APIARIES: 'apigest_apiaries_v2',
-            HIVES: 'apigest_hives_v2', 
-            MOVEMENTS: 'apigest_movements_v2',
-            INTERVENTIONS: 'apigest_interventions_v2',
-            FEEDINGS: 'apigest_feedings_v2',
-            HARVESTS: 'apigest_harvests_v2',
-            PACKAGING: 'apigest_packaging_v2',
-            SALES: 'apigest_sales_v2',
-            PRODUCTS: 'apigest_products_v2',
-            HONEY_TYPES: 'apigest_honey_types_v2',
-            FOOD_TYPES: 'apigest_food_types_v2',
-            EXPENSES: 'apigest_expenses_v2',
-            CLIENTS: 'apigest_clients_v2',
-            COST_CONFIG: 'apigest_cost_config_v2',
+            PROFILE: 'apigest_profile_v3', APIARIES: 'apigest_apiaries_v3', HIVES: 'apigest_hives_v3', 
+            MOVEMENTS: 'apigest_movements_v3', INTERVENTIONS: 'apigest_interventions_v3', FEEDINGS: 'apigest_feedings_v3',
+            HARVESTS: 'apigest_harvests_v3', PACKAGING: 'apigest_packaging_v3', SALES: 'apigest_sales_v3',
+            PRODUCTS: 'apigest_products_v3', HONEY_TYPES: 'apigest_honey_types_v3', FOOD_TYPES: 'apigest_food_types_v3',
+            EXPENSES: 'apigest_expenses_v3', CLIENTS: 'apigest_clients_v3', COST_CONFIG: 'apigest_cost_config_v3',
         };
 
-        // Données d'exemple initiales
-        const SAMPLE_PROFILE = { companyName: 'Le Rucher Du Vieux Juigné', napi: '', siret: '', address: '', status: 'Micro BA', creationDate: '2020-01-01', vetName: '', vetAddress: '' };
-        const SAMPLE_COST_CONFIG = { jar250: 0.30, jar500: 0.45, jar1kg: 0.60, lid: 0.15, label250: 0.10, label500: 0.10, label1kg: 0.12, feedingYearly: 0, treatmentYearly: 0 };
-        const SAMPLE_APIARIES = [ { id: 'api_1', name: 'Rucher Principal', location: 'Juigné' } ];
-        const SAMPLE_HIVES = [ { id: 'h_1', name: 'Ruche 01', apiaryId: 'api_1' }, { id: 'h_2', name: 'Ruche 02', apiaryId: 'api_1' } ];
-
         const get = (key, def) => { try { return JSON.parse(localStorage.getItem(key)) || def; } catch { return def; } };
-        const set = (key, val) => { try { localStorage.setItem(key, JSON.stringify(val)); } catch(e) { console.error("Quota Exceeded", e); } };
+        const set = (key, val) => { try { localStorage.setItem(key, JSON.stringify(val)); } catch(e) { console.error(e); } };
 
         const createListManager = (key, defaultList = []) => ({
             getAll: () => get(key, defaultList),
@@ -176,48 +134,45 @@
             delete: (id) => set(key, get(key, defaultList).filter(x=>x.id!==id))
         });
 
-        // Config par défaut
-        const DEFAULT_HONEY_TYPES = ['Toutes fleurs', 'Acacia', 'Châtaignier', 'Printemps', 'Été', 'Forêt', 'Lavande', 'Sapin'];
-        const DEFAULT_FOOD_TYPES = ['Sirop 50/50', 'Sirop 70/30', 'Sirop de stimulation', 'Candi', 'Candi Protéiné', 'Sucre'];
+        // Données par défaut (pour que l'app ne soit pas vide au premier lancement)
+        const SAMPLE_APIARIES = [{id:'demo_api', name:'Rucher Démo', location:'Jardin'}];
+        const SAMPLE_HIVES = [{id:'demo_hive', name:'Ruche 01', apiaryId:'demo_api'}];
 
-        // OBJET STORAGE GLOBAL
         const Storage = {
             generateId,
-            getProfile: () => get(STORAGE_KEYS.PROFILE, SAMPLE_PROFILE),
+            getProfile: () => get(STORAGE_KEYS.PROFILE, { companyName: 'Le Rucher Du Vieux Juigné', status: 'Micro BA' }),
             saveProfile: (p) => set(STORAGE_KEYS.PROFILE, p),
-            
             getApiaries: () => get(STORAGE_KEYS.APIARIES, SAMPLE_APIARIES),
             saveApiary: (a) => { const l = get(STORAGE_KEYS.APIARIES, SAMPLE_APIARIES); const i = l.findIndex(x=>x.id===a.id); if(i>=0) l[i]=a; else l.push(a); set(STORAGE_KEYS.APIARIES, l); },
             deleteApiary: (id) => set(STORAGE_KEYS.APIARIES, get(STORAGE_KEYS.APIARIES, SAMPLE_APIARIES).filter(x=>x.id!==id)),
             
             hives: createListManager(STORAGE_KEYS.HIVES, SAMPLE_HIVES),
-            movements: createListManager(STORAGE_KEYS.MOVEMENTS, []),
-            interventions: createListManager(STORAGE_KEYS.INTERVENTIONS, []),
-            feedings: createListManager(STORAGE_KEYS.FEEDINGS, []),
-            harvests: createListManager(STORAGE_KEYS.HARVESTS, []),
-            packaging: createListManager(STORAGE_KEYS.PACKAGING, []),
-            sales: createListManager(STORAGE_KEYS.SALES, []),
-            products: createListManager(STORAGE_KEYS.PRODUCTS, []),
-            expenses: createListManager(STORAGE_KEYS.EXPENSES, []),
-            clients: createListManager(STORAGE_KEYS.CLIENTS, []),
+            movements: createListManager(STORAGE_KEYS.MOVEMENTS),
+            interventions: createListManager(STORAGE_KEYS.INTERVENTIONS),
+            feedings: createListManager(STORAGE_KEYS.FEEDINGS),
+            harvests: createListManager(STORAGE_KEYS.HARVESTS),
+            packaging: createListManager(STORAGE_KEYS.PACKAGING),
+            sales: createListManager(STORAGE_KEYS.SALES),
+            products: createListManager(STORAGE_KEYS.PRODUCTS),
+            expenses: createListManager(STORAGE_KEYS.EXPENSES),
+            clients: createListManager(STORAGE_KEYS.CLIENTS),
             
-            getHoneyTypes: () => get(STORAGE_KEYS.HONEY_TYPES, DEFAULT_HONEY_TYPES),
+            getHoneyTypes: () => get(STORAGE_KEYS.HONEY_TYPES, ['Toutes fleurs', 'Acacia', 'Printemps', 'Été', 'Châtaignier']),
             saveHoneyTypes: (t) => set(STORAGE_KEYS.HONEY_TYPES, t),
-            getFoodTypes: () => get(STORAGE_KEYS.FOOD_TYPES, DEFAULT_FOOD_TYPES),
+            getFoodTypes: () => get(STORAGE_KEYS.FOOD_TYPES, ['Sirop 50/50', 'Candi', 'Sirop stimulation']),
             saveFoodTypes: (t) => set(STORAGE_KEYS.FOOD_TYPES, t),
-            getCostConfig: () => get(STORAGE_KEYS.COST_CONFIG, SAMPLE_COST_CONFIG),
+            getCostConfig: () => get(STORAGE_KEYS.COST_CONFIG, { jar250: 0.3, jar500: 0.45, jar1kg: 0.6, lid: 0.15, label250: 0.1, label500: 0.1, label1kg: 0.12, feedingYearly: 0, treatmentYearly: 0 }),
             saveCostConfig: (c) => set(STORAGE_KEYS.COST_CONFIG, c),
 
             exportAllData: () => {
                 const data = {};
                 Object.keys(STORAGE_KEYS).forEach(k => data[k] = get(STORAGE_KEYS[k], []));
-                return JSON.stringify({version:'2.0', timestamp: new Date().toISOString(), data});
+                return JSON.stringify({version:'3.0', timestamp: new Date().toISOString(), data});
             },
             importAllData: (json) => {
                 try {
                     const parsed = JSON.parse(json);
                     if(!parsed.data) return false;
-                    Object.values(STORAGE_KEYS).forEach(key => localStorage.removeItem(key)); // Nettoyer avant import
                     Object.keys(parsed.data).forEach(k => {
                         const foundKey = Object.keys(STORAGE_KEYS).find(sk => sk === k || STORAGE_KEYS[sk] === k);
                         if(foundKey) set(STORAGE_KEYS[foundKey], parsed.data[k]);
@@ -227,7 +182,7 @@
             }
         };
 
-        // --- 2. SERVICE PDF ---
+        // --- 2. PDF SERVICE (Intégré) ---
         const PDFService = {
             generateDoc: (title, start, end) => {
                 const { jsPDF } = window.jspdf;
@@ -237,70 +192,68 @@
                 doc.setFontSize(18);
                 doc.setTextColor(42, 51, 30);
                 doc.text(profile.companyName || "Apiculture", 14, 20);
+                
                 doc.setFontSize(10);
                 doc.setTextColor(100);
                 let y = 26;
                 doc.text(profile.address || '', 14, y);
                 if(profile.address) y+=6;
-                doc.text(`NAPI: ${profile.napi} | SIRET: ${profile.siret}`, 14, y);
+                doc.text(`NAPI: ${profile.napi || '-'} | SIRET: ${profile.siret || '-'}`, 14, y);
                 y+=6;
                 
-                doc.setDrawColor(200);
+                doc.setDrawColor(244, 206, 94);
                 doc.line(14, y+4, 196, y+4);
                 
                 doc.setFontSize(14);
                 doc.setTextColor(0);
-                const sStr = new Date(start).toLocaleDateString('fr-FR');
-                const eStr = new Date(end).toLocaleDateString('fr-FR');
-                doc.text(`${title} (${sStr} - ${eStr})`, 14, y+14);
-                return {doc, y: y+20};
+                const startStr = new Date(start).toLocaleDateString('fr-FR');
+                const endStr = new Date(end).toLocaleDateString('fr-FR');
+                doc.text(`${title} (${startStr} - ${endStr})`, 14, y+14);
+                
+                return {doc, y: y+24};
             },
             
-            filterByDate: (items, start, end) => items.filter(i => i.date >= start && i.date <= end),
-
             generateBreedingRegisterPDF: (s, e) => {
                 const {doc, y} = PDFService.generateDoc("Registre d'Élevage", s, e);
-                const filter = (arr) => PDFService.filterByDate(arr, s, e);
-                const apiaries = Storage.getApiaries();
-                const hives = Storage.hives.getAll();
-                const getTarget = (aid, hid) => {
-                    const aname = apiaries.find(a=>a.id===aid)?.name || 'Inconnu';
-                    const hname = hid ? hives.find(h=>h.id===hid)?.name : null;
-                    return hname ? `${aname} > ${hname}` : aname;
-                };
-
+                const filter = (arr) => arr.filter(i => i.date >= s && i.date <= e);
+                
                 doc.setFontSize(12); doc.text("1. Traitements", 14, y);
                 doc.autoTable({
-                    startY: y+5, head: [['Date', 'Rucher/Ruche', 'Médicament', 'N° Lot', 'Qté']],
-                    body: filter(Storage.interventions.getAll()).map(i => [new Date(i.date).toLocaleDateString(), getTarget(i.apiaryId, i.hiveId), i.drugName, i.batchNumber, i.quantity]),
+                    startY: y+4,
+                    head: [['Date', 'Médicament', 'N° Lot', 'Qté']],
+                    body: filter(Storage.interventions.getAll()).map(i => [new Date(i.date).toLocaleDateString(), i.drugName, i.batchNumber, i.quantity]),
                     theme:'grid', headStyles:{fillColor:[220, 38, 38]}
                 });
                 
-                let fy = doc.lastAutoTable.finalY + 15;
-                doc.text("2. Mouvements", 14, fy);
+                let finalY = doc.lastAutoTable.finalY + 10;
+                doc.text("2. Mouvements", 14, finalY);
                 doc.autoTable({
-                    startY: fy+5, head: [['Date', 'Type', 'Origine > Dest.', 'Qté']],
-                    body: filter(Storage.movements.getAll()).map(m => [new Date(m.date).toLocaleDateString(), m.type, `${apiaries.find(a=>a.id===m.originApiaryId)?.name||'-'} > ${apiaries.find(a=>a.id===m.destinationApiaryId)?.name||'-'}`, m.quantity]),
+                    startY: finalY+4,
+                    head: [['Date', 'Type', 'Détail', 'Qté']],
+                    body: filter(Storage.movements.getAll()).map(m => [new Date(m.date).toLocaleDateString(), m.type, m.description, m.quantity]),
                     theme:'grid', headStyles:{fillColor:[37, 99, 235]}
                 });
+                
                 doc.save('registre_elevage.pdf');
             },
             
             generateHoneyTraceabilityPDF: (s, e) => {
                 const {doc, y} = PDFService.generateDoc("Cahier de Miellerie", s, e);
-                const filter = (arr) => PDFService.filterByDate(arr, s, e);
+                const filter = (arr) => arr.filter(i => i.date >= s && i.date <= e);
                 
-                doc.setFontSize(12); doc.text("1. Récoltes (Vrac)", 14, y);
+                doc.setFontSize(12); doc.text("1. Récoltes", 14, y);
                 doc.autoTable({
-                    startY: y+5, head: [['Date', 'Miel', 'Poids', 'Lot Vrac']],
-                    body: filter(Storage.harvests.getAll()).map(h => [new Date(h.date).toLocaleDateString(), h.honeyType, h.quantityKg+'kg', h.batchId]),
+                    startY: y+4,
+                    head: [['Date', 'Miel', 'Poids', 'Lot Vrac']],
+                    body: filter(Storage.harvests.getAll()).map(h => [new Date(h.date).toLocaleDateString(), h.honeyType, h.quantityKg + 'kg', h.batchId]),
                     theme:'grid', headStyles:{fillColor:[217, 119, 6]}
                 });
                 
-                let fy = doc.lastAutoTable.finalY + 15;
-                doc.text("2. Conditionnement", 14, fy);
+                let finalY = doc.lastAutoTable.finalY + 10;
+                doc.text("2. Mises en Pot", 14, finalY);
                 doc.autoTable({
-                    startY: fy+5, head: [['Date', 'Lot', 'Qté x Format']],
+                    startY: finalY+4,
+                    head: [['Date', 'Lot Final', 'Qté x Format']],
                     body: filter(Storage.packaging.getAll()).map(p => [new Date(p.date).toLocaleDateString(), p.finalBatchNumber, `${p.quantityPots} x ${p.potSize}`]),
                     theme:'grid', headStyles:{fillColor:[217, 119, 6]}
                 });
@@ -309,12 +262,14 @@
 
             generateSalesPDF: (s, e) => {
                 const {doc, y} = PDFService.generateDoc("Livre de Recettes", s, e);
-                const sales = PDFService.filterByDate(Storage.sales.getAll(), s, e).sort((a,b)=>new Date(a.date)-new Date(b.date));
+                const sales = Storage.sales.getAll().filter(i => i.date >= s && i.date <= e).sort((a,b)=>new Date(a.date)-new Date(b.date));
                 
                 doc.autoTable({ 
-                    startY: y, head: [['Date', 'Client', 'Produit', 'Qté', 'Total']], 
-                    body: sales.map(x => [new Date(x.date).toLocaleDateString(), x.buyerName||'Direct', x.productName||x.finalBatchNumber, x.quantitySold, x.totalPrice.toFixed(2)+'€']), 
-                    theme:'grid', headStyles:{fillColor:[22, 163, 74]},
+                    startY: y, 
+                    head: [['Date', 'Client', 'Produit', 'Qté', 'Total']], 
+                    body: sales.map(x => [new Date(x.date).toLocaleDateString(), x.buyerName, x.productName || x.finalBatchNumber, x.quantitySold, x.totalPrice.toFixed(2) + '€']), 
+                    theme:'grid', 
+                    headStyles:{fillColor:[22, 163, 74]},
                     foot: [['', '', '', 'TOTAL', sales.reduce((a,b)=>a+(b.totalPrice||0),0).toFixed(2)+'€']]
                 });
                 doc.save('ventes.pdf');
@@ -322,7 +277,6 @@
         };
 
         // --- 3. COMPOSANTS PARTAGÉS ---
-        
         const HiveIcon = ({ size = 24, className = "" }) => (
             <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
                 <rect x="3" y="3" width="18" height="4" rx="1" />
@@ -333,74 +287,9 @@
             </svg>
         );
 
-        const ConfirmModal = ({ isOpen, title, message, onConfirm, onCancel }) => {
-            if (!isOpen) return null;
-            return (
-                <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4">
-                    <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full p-6 animate-in fade-in zoom-in duration-200">
-                        <div className="flex items-center gap-3 text-red-600 mb-4">
-                            <AlertTriangle size={28} />
-                            <h3 className="text-xl font-bold">{title}</h3>
-                        </div>
-                        <p className="text-gray-600 mb-6">{message}</p>
-                        <div className="flex gap-3 justify-end">
-                            <button onClick={onCancel} className="px-4 py-2 text-gray-600 font-medium hover:bg-gray-100 rounded-lg">Annuler</button>
-                            <button onClick={onConfirm} className="px-4 py-2 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700 shadow-sm">Confirmer</button>
-                        </div>
-                    </div>
-                </div>
-            );
-        };
+        // --- 4. MODULES FONCTIONNELS (FUSIONNÉS) ---
 
-        const SimpleDonutChart = ({ data }) => {
-            const total = data.reduce((sum, item) => sum + item.value, 0);
-            if (total === 0) return <div className="h-40 flex items-center justify-center text-gray-400 text-xs">Pas de données</div>;
-            let currentAngle = 0;
-            const gradientParts = data.map(item => {
-                const percentage = (item.value / total) * 100;
-                const start = currentAngle;
-                const end = currentAngle + percentage;
-                currentAngle = end;
-                return `${item.color} ${start}% ${end}%`;
-            });
-            return (
-                <div className="flex flex-col items-center justify-center">
-                    <div className="relative w-32 h-32 rounded-full mb-4 shadow-sm" style={{ background: `conic-gradient(${gradientParts.join(', ')})` }}>
-                        <div className="absolute inset-4 bg-white rounded-full flex items-center justify-center flex-col">
-                            <span className="text-xs text-gray-400">Total</span>
-                            <span className="font-bold text-gray-800">{total.toFixed(0)}€</span>
-                        </div>
-                    </div>
-                    <div className="w-full space-y-1">
-                        {data.map((item, idx) => (
-                            <div key={idx} className="flex justify-between text-xs items-center">
-                                <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full" style={{ background: item.color }}></span><span className="text-gray-600">{item.name}</span></div>
-                                <span className="font-bold">{item.value.toFixed(0)} €</span>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            );
-        };
-
-        const SimpleBarChart = ({ data }) => {
-            const max = Math.max(...data.map(d => d.value), 1);
-            if(data.length === 0) return <div className="h-40 flex items-center justify-center text-gray-400 text-xs">Pas de données</div>;
-            return (
-                <div className="space-y-3 w-full">
-                    {data.map((item, idx) => (
-                        <div key={idx} className="w-full">
-                            <div className="flex justify-between text-xs mb-1"><span className="font-medium text-gray-700">{item.name}</span><span className="font-bold text-honey-600">{item.value.toFixed(0)} €</span></div>
-                            <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden"><div className="bg-honey-500 h-2.5 rounded-full" style={{ width: `${(item.value / max) * 100}%` }}></div></div>
-                        </div>
-                    ))}
-                </div>
-            );
-        };
-
-        // --- 4. MODULES METIERS (COMPOSANTS) ---
-
-        // >>> CLIENTS <<<
+        // GESTION DES CLIENTS
         const ClientManager = () => {
             const [clients, setClients] = useState([]);
             const [sales, setSales] = useState([]);
@@ -429,13 +318,12 @@
                         <h2 className="text-2xl font-bold flex items-center gap-2"><Users /> Gestion des Clients</h2>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 md:col-span-1 h-fit">
+                        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 md:col-span-1 h-fit sticky top-4">
                             <h3 className="font-bold text-gray-800 mb-4">{editingId ? "Modifier" : "Nouveau"}</h3>
                             <input type="text" placeholder="Nom *" className="w-full border p-2 rounded mb-2" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})}/>
                             <input type="text" placeholder="Tel" className="w-full border p-2 rounded mb-2" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})}/>
                             <input type="text" placeholder="Email" className="w-full border p-2 rounded mb-2" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})}/>
-                            <input type="text" placeholder="Adresse" className="w-full border p-2 rounded mb-2" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})}/>
-                            <button onClick={handleSaveClient} className="w-full bg-blue-600 text-white p-2 rounded font-bold">{editingId?'Mettre à jour':'Enregistrer'}</button>
+                            <button onClick={handleSaveClient} className="w-full bg-blue-600 text-white p-2 rounded font-bold">Enregistrer</button>
                         </div>
                         <div className="bg-white p-6 rounded-xl shadow-sm md:col-span-2">
                             <input type="text" placeholder="Rechercher..." className="w-full border p-2 rounded mb-4" value={searchTerm} onChange={e => setSearchTerm(e.target.value)}/>
@@ -459,7 +347,7 @@
             );
         };
 
-        // >>> DEPENSES <<<
+        // GESTION DES DEPENSES
         const Expenses = () => {
             const [expenses, setExpenses] = useState([]);
             const [newExpense, setNewExpense] = useState({ date: new Date().toISOString().split('T')[0], store: '', description: '', category: 'MATERIEL', amount: '' });
@@ -500,7 +388,7 @@
             );
         };
 
-        // >>> ELEVAGE <<<
+        // GESTION DE L'ELEVAGE (Ruchers, Soins, Mouvements)
         const BreedingRegister = () => {
             const [activeTab, setActiveTab] = useState('APIARY');
             const [apiaries, setApiaries] = useState([]);
@@ -509,12 +397,13 @@
             const [feedings, setFeedings] = useState([]);
             const [movements, setMovements] = useState([]);
             
+            const [newApiary, setNewApiary] = useState({name:'', location:''});
             const [newInt, setNewInt] = useState({date: new Date().toISOString().split('T')[0], drugName: '', batchNumber: '', quantity: '', apiaryId: ''});
             const [newFeeding, setNewFeeding] = useState({date: new Date().toISOString().split('T')[0], foodType:'', quantity:'', apiaryId:''});
-            const [newMov, setNewMov] = useState({date: new Date().toISOString().split('T')[0], type:'Transhumance', description:'', originApiaryId:'', destinationApiaryId:'', quantity:1});
+            const [newMov, setNewMov] = useState({date: new Date().toISOString().split('T')[0], type:'Transhumance', originId:'', destId:'', quantity:1});
 
-            useEffect(() => { refresh(); }, []);
-            const refresh = () => { 
+            useEffect(() => { refreshData(); }, []);
+            const refreshData = () => {
                 setApiaries(Storage.getApiaries()); 
                 setHives(Storage.hives.getAll()); 
                 setInterventions(Storage.interventions.getAll());
@@ -531,16 +420,31 @@
                             </button>
                         ))}
                     </div>
+                    
                     {activeTab === 'APIARY' && (
-                        <div className="space-y-2">
-                            {apiaries.map(apiary => (
-                                <div key={apiary.id} className="bg-white border rounded-xl p-4">
-                                    <h3 className="font-bold text-lg">{apiary.name}</h3>
-                                    <p className="text-gray-500 text-xs mb-2">{apiary.location}</p>
-                                    <div className="flex flex-wrap gap-2">
+                        <div>
+                             <div className="bg-white p-4 rounded-xl border mb-4 flex gap-2">
+                                <input placeholder="Nom Rucher" className="border p-2 rounded flex-1" value={newApiary.name} onChange={e=>setNewApiary({...newApiary,name:e.target.value})}/>
+                                <button onClick={()=>{ if(newApiary.name){Storage.saveApiary({...newApiary,id:Storage.generateId()}); setNewApiary({name:'',location:''}); refreshData();} }} className="bg-honey-500 text-white px-4 rounded"><Plus/></button>
+                             </div>
+                             {apiaries.map(apiary => (
+                                <div key={apiary.id} className="bg-white border rounded-xl p-4 mb-2">
+                                    <div className="flex justify-between">
+                                        <h3 className="font-bold text-lg">{apiary.name}</h3>
+                                        <button onClick={()=>{ if(confirm('Supprimer?')) {Storage.deleteApiary(apiary.id); refreshData();} }}><Trash2 size={16} className="text-gray-300"/></button>
+                                    </div>
+                                    <div className="flex gap-2 mt-2 items-center">
+                                        <input placeholder="Ajouter ruche..." className="border p-1 rounded text-sm" id={`hive_${apiary.id}`}/>
+                                        <button onClick={()=>{
+                                            const name = document.getElementById(`hive_${apiary.id}`).value;
+                                            if(name) { Storage.hives.add({id:Storage.generateId(), name, apiaryId:apiary.id}); refreshData(); document.getElementById(`hive_${apiary.id}`).value='';}
+                                        }} className="bg-blue-100 text-blue-600 px-2 rounded text-sm font-bold">+</button>
+                                    </div>
+                                    <div className="flex flex-wrap gap-2 mt-3">
                                         {hives.filter(h=>h.apiaryId===apiary.id).map(hive => (
                                             <span key={hive.id} className="px-2 py-1 bg-honey-50 border border-honey-100 rounded text-xs font-bold text-honey-700 flex items-center gap-1">
                                                 <HiveIcon size={12}/> {hive.name}
+                                                <button onClick={()=>{Storage.hives.delete(hive.id); refreshData();}} className="ml-1 text-red-300">x</button>
                                             </span>
                                         ))}
                                     </div>
@@ -548,6 +452,7 @@
                             ))}
                         </div>
                     )}
+                    
                     {activeTab === 'SANITARY' && (
                         <div>
                              <div className="bg-white p-4 rounded-xl border mb-4 shadow-sm">
@@ -555,61 +460,53 @@
                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                                     <input type="date" className="border p-2 rounded" value={newInt.date} onChange={e=>setNewInt({...newInt, date:e.target.value})}/>
                                     <select className="border p-2 rounded" value={newInt.apiaryId} onChange={e=>setNewInt({...newInt, apiaryId:e.target.value})}>
-                                        <option value="">Rucher...</option>
+                                        <option value="">Choisir Rucher...</option>
                                         {apiaries.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}
                                     </select>
-                                    <input type="text" placeholder="Médicament" className="border p-2 rounded" value={newInt.drugName} onChange={e=>setNewInt({...newInt, drugName:e.target.value})}/>
-                                    <input type="text" placeholder="N° Lot" className="border p-2 rounded" value={newInt.batchNumber} onChange={e=>setNewInt({...newInt, batchNumber:e.target.value})}/>
+                                    <input type="text" placeholder="Médicament (ex: Apivar)" className="border p-2 rounded" value={newInt.drugName} onChange={e=>setNewInt({...newInt, drugName:e.target.value})}/>
+                                    <input type="text" placeholder="N° Lot (OBLIGATOIRE)" className="border-2 border-red-200 p-2 rounded" value={newInt.batchNumber} onChange={e=>setNewInt({...newInt, batchNumber:e.target.value})}/>
                                  </div>
-                                 <button onClick={()=>{if(newInt.drugName){Storage.interventions.add({...newInt, id:Storage.generateId()}); refresh();}}} className="w-full bg-red-600 text-white p-2 rounded font-bold mt-2">Enregistrer</button>
+                                 <button onClick={()=>{ if(newInt.drugName && newInt.batchNumber){Storage.interventions.add({...newInt, id:Storage.generateId()}); refreshData();} }} className="w-full bg-red-600 text-white p-2 rounded font-bold mt-2">Enregistrer Traitement</button>
                              </div>
                              <div className="space-y-2">
-                                 {interventions.map(i => (<div key={i.id} className="p-3 bg-white border rounded shadow-sm"><div className="font-bold">{i.drugName}</div><div className="text-xs text-gray-500">Lot: {i.batchNumber} | {new Date(i.date).toLocaleDateString()}</div><button onClick={()=>{Storage.interventions.delete(i.id); refresh();}} className="text-red-500 text-xs">Supprimer</button></div>))}
+                                 {interventions.map(i => (
+                                     <div key={i.id} className="p-3 bg-white border rounded shadow-sm">
+                                         <div className="font-bold">{i.drugName} <span className="text-gray-400 font-normal">({apiaries.find(a=>a.id===i.apiaryId)?.name || '?'})</span></div>
+                                         <div className="text-xs text-gray-500">Lot: {i.batchNumber} | {new Date(i.date).toLocaleDateString()}</div>
+                                     </div>
+                                 ))}
                              </div>
                         </div>
                     )}
+
                     {activeTab === 'FEEDING' && (
                         <div>
-                             <div className="bg-white p-4 rounded-xl border mb-4">
+                             <div className="bg-white p-4 rounded-xl border mb-4 shadow-sm">
                                  <h3 className="font-bold mb-2">Nourrissement</h3>
                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                                     <input type="date" className="border p-2 rounded" value={newFeeding.date} onChange={e=>setNewFeeding({...newFeeding, date:e.target.value})}/>
                                     <select className="border p-2 rounded" value={newFeeding.apiaryId} onChange={e=>setNewFeeding({...newFeeding, apiaryId:e.target.value})}>
-                                        <option value="">Rucher...</option>
+                                        <option value="">Choisir Rucher...</option>
                                         {apiaries.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}
                                     </select>
-                                    <input type="text" placeholder="Type" className="border p-2 rounded" value={newFeeding.foodType} onChange={e=>setNewFeeding({...newFeeding, foodType:e.target.value})}/>
+                                    <input type="text" placeholder="Type (Sirop, Candi...)" className="border p-2 rounded" value={newFeeding.foodType} onChange={e=>setNewFeeding({...newFeeding, foodType:e.target.value})}/>
                                     <input type="text" placeholder="Quantité" className="border p-2 rounded" value={newFeeding.quantity} onChange={e=>setNewFeeding({...newFeeding, quantity:e.target.value})}/>
                                  </div>
-                                 <button onClick={()=>{if(newFeeding.foodType){Storage.feedings.add({...newFeeding, id:Storage.generateId()}); refresh();}}} className="w-full bg-amber-500 text-white p-2 rounded font-bold mt-2">Enregistrer</button>
+                                 <button onClick={()=>{ if(newFeeding.foodType){Storage.feedings.add({...newFeeding, id:Storage.generateId()}); refreshData();} }} className="w-full bg-amber-500 text-white p-2 rounded font-bold mt-2">Enregistrer</button>
                              </div>
-                             <div className="space-y-2">
-                                 {feedings.map(f => (<div key={f.id} className="p-3 bg-white border rounded"><div className="font-bold">{f.foodType} - {f.quantity}</div><div className="text-xs text-gray-500">{new Date(f.date).toLocaleDateString()}</div></div>))}
-                             </div>
+                             {feedings.map(f => (
+                                 <div key={f.id} className="p-3 bg-white border rounded shadow-sm mb-2">
+                                     <div className="font-bold">{f.foodType} - {f.quantity}</div>
+                                     <div className="text-xs text-gray-500">{apiaries.find(a=>a.id===f.apiaryId)?.name} | {new Date(f.date).toLocaleDateString()}</div>
+                                 </div>
+                             ))}
                         </div>
-                    )}
-                    {activeTab === 'MOVEMENTS' && (
-                       <div>
-                         <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2"><Truck className="text-honey-600" /> Mouvements</h2>
-                         <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 mb-4">
-                           <input type="date" className="border p-2 rounded w-full mb-2" value={newMov.date} onChange={e => setNewMov({ ...newMov, date: e.target.value })} />
-                           <input type="text" placeholder="Description" className="border p-2 rounded w-full mb-2" value={newMov.description} onChange={e => setNewMov({ ...newMov, description: e.target.value })} />
-                           <div className="flex gap-2 mb-2">
-                               <select className="border p-2 rounded w-full" value={newMov.originApiaryId} onChange={e => setNewMov({ ...newMov, originApiaryId: e.target.value })}><option value="">Départ</option>{apiaries.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}</select>
-                               <select className="border p-2 rounded w-full" value={newMov.destinationApiaryId} onChange={e => setNewMov({ ...newMov, destinationApiaryId: e.target.value })}><option value="">Arrivée</option>{apiaries.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}</select>
-                           </div>
-                           <button onClick={()=>{if(newMov.description){Storage.movements.add({...newMov, id:Storage.generateId()}); refresh();}}} className="bg-blue-600 text-white p-2 rounded w-full font-bold">Enregistrer</button>
-                        </div>
-                        <div className="space-y-2">
-                            {movements.map(m => (<div key={m.id} className="p-3 border-b bg-white rounded"><span className="font-bold text-blue-800">{m.type}</span>: {m.description} ({m.quantity} ruches) <button onClick={() => { Storage.movements.delete(m.id); refresh(); }} className="text-red-400 float-right"><Trash2 size={16} /></button></div>))}
-                        </div>
-                       </div>
                     )}
                 </div>
             );
         };
 
-        // >>> MIELLERIE & CAISSE (HoneyTraceability) <<<
+        // GESTION MIELLERIE & CAISSE (Fusionné et simplifié)
         const HoneyTraceability = ({ initialTab }) => {
             const [activeTab, setActiveTab] = useState(initialTab || 'POS');
             const [products, setProducts] = useState([]);
@@ -798,7 +695,7 @@
             );
         };
 
-        // --- 5. APPLICATION PRINCIPALE ---
+        // --- 5. APP PRINCIPALE ---
         const App = () => {
             const [view, setView] = useState('DASHBOARD');
             const [honeyTab, setHoneyTab] = useState('POS');
