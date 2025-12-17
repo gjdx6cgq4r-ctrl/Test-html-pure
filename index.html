@@ -3,23 +3,23 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-    <title>ApiGest - Le Rucher Du Vieux Juigné</title>
+    <title>ApiGest - Debug Mode</title>
 
+    <!-- CONFIGURATION APPLE PWA -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="ApiGest">
 
-    <!-- FONTS -->
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
-
-    <!-- LIBRAIRIES (CDN) -->
+    <!-- STYLE GLOBAL -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
         theme: {
           extend: {
             colors: {
-              'rucher-yellow': '#F4CE5E', 'rucher-green': '#5E7048', 'rucher-bg': '#FAF9F4', 'rucher-dark': '#2A331E',
+              'rucher-yellow': '#F4CE5E',
+              'rucher-green': '#5E7048',
+              'rucher-bg': '#FAF9F4',
+              'rucher-dark': '#2A331E',
               honey: { 50: '#FAF9F4', 100: '#fffbd1', 500: '#F4CE5E', 600: '#dcb955', 700: '#5E7048', 800: '#2A331E', 900: '#1a2012' }
             },
             fontFamily: { serif: ['"Playfair Display"', 'serif'], sans: ['"Lato"', 'sans-serif'] }
@@ -27,37 +27,37 @@
         }
       }
     </script>
-    
-    <!-- REACT & BABEL (Pour exécuter le code directement) -->
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+
+    <!-- DEPENDANCES (UMD - Chargement direct) -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    
-    <!-- ICONS & PDF -->
     <script src="https://unpkg.com/lucide-react@latest/dist/umd/lucide-react.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
 
     <style>
-        @keyframes flyCart {
-            0% { transform: scale(0.5) translateY(0) rotate(0deg); opacity: 1; }
-            40% { transform: scale(1.5) translateY(-30px) rotate(-10deg); opacity: 1; }
-            100% { transform: scale(0.2) translateY(300px) translateX(200px) rotate(45deg); opacity: 0; }
-        }
-        .animate-fly-cart { animation: flyCart 0.8s ease-in-out forwards; pointer-events: none; z-index: 9999; }
+        body { background-color: #FAF9F4; color: #2A331E; -webkit-tap-highlight-color: transparent; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        .safe-area-bottom { padding-bottom: env(safe-area-inset-bottom); }
-        body { background-color: #FAF9F4; color: #2A331E; }
+        
+        /* ERROR OVERLAY STYLE */
+        #error-overlay {
+            display: none;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: white; color: #b91c1c; z-index: 10000;
+            padding: 20px; overflow: auto; font-family: monospace;
+        }
     </style>
 <script type="importmap">
 {
   "imports": {
-    "react": "https://esm.sh/react@^19.2.3",
     "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
-    "react/": "https://esm.sh/react@^19.2.3/",
     "@google/genai": "https://esm.sh/@google/genai@^1.34.0",
     "lucide-react": "https://esm.sh/lucide-react@^0.561.0",
+    "react": "https://esm.sh/react@^19.2.3",
+    "react/": "https://esm.sh/react@^19.2.3/",
     "jspdf": "https://esm.sh/jspdf@^3.0.4",
     "jspdf-autotable": "https://esm.sh/jspdf-autotable@^5.0.2"
   }
@@ -65,10 +65,36 @@
 </script>
 </head>
 <body>
+    <!-- ZONE D'AFFICHAGE DES ERREURS (Invisible sauf si crash) -->
+    <div id="error-overlay">
+        <h1 style="font-size: 24px; font-weight: bold; margin-bottom: 20px;">⚠️ Une erreur est survenue</h1>
+        <p style="margin-bottom: 10px; color: #333;">Prenez une capture d'écran de ce message pour le diagnostic :</p>
+        <pre id="error-content" style="background: #fef2f2; padding: 15px; border: 1px solid #f87171; border-radius: 8px; white-space: pre-wrap;"></pre>
+        <button onclick="window.location.reload()" style="margin-top: 20px; padding: 10px 20px; background: #333; color: white; border: none; border-radius: 5px;">Recharger la page</button>
+    </div>
+
+    <!-- SCRIPT DE DEBUG (Capture toutes les erreurs) -->
+    <script>
+        window.onerror = function(message, source, lineno, colno, error) {
+            document.getElementById('error-overlay').style.display = 'block';
+            document.getElementById('error-content').innerText = 
+                "Message: " + message + "\n" +
+                "Source: " + source + "\n" +
+                "Ligne: " + lineno + ":" + colno + "\n" +
+                "Stack: " + (error ? error.stack : 'N/A');
+            return false;
+        };
+        window.onunhandledrejection = function(event) {
+            document.getElementById('error-overlay').style.display = 'block';
+            document.getElementById('error-content').innerText += "\n\nPromise Rejection: " + event.reason;
+        };
+    </script>
+
     <div id="root"></div>
 
+    <!-- APPLICATION COMPLETE (Babel Script) -->
     <script type="text/babel">
-        // --- 0. VARIABLES GLOBALES & UTILITAIRES ---
+        // --- 0. INITIALISATION ---
         const { useState, useEffect, useMemo, useRef } = React;
         const { 
             LayoutDashboard, Settings, MapPin, Plus, Trash2, Save, Wallet, 
@@ -79,6 +105,7 @@
             Tag, Calendar, BookOpen, Droplets, BookOpenText, Layers, Coins, ImagePlus, ArrowDown, ArrowUp, ArrowUpDown, PlusCircle, Loader2
         } = lucideReact;
 
+        // --- 1. UTILITAIRES ---
         const generateId = () => 'id_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
         const normalizeString = (str) => (!str ? '' : str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '').trim());
         const getYearFromDateStr = (dateStr) => {
@@ -86,7 +113,6 @@
             const parts = dateStr.split('-');
             return parts.length > 0 ? parseInt(parts[0]) : new Date(dateStr).getFullYear();
         };
-
         const compressImage = (file) => {
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
@@ -115,7 +141,7 @@
             });
         };
 
-        // --- 1. STORAGE SERVICE (Intégré) ---
+        // --- 2. STORAGE (Données) ---
         const STORAGE_KEYS = {
             PROFILE: 'apigest_profile_v3', APIARIES: 'apigest_apiaries_v3', HIVES: 'apigest_hives_v3', 
             MOVEMENTS: 'apigest_movements_v3', INTERVENTIONS: 'apigest_interventions_v3', FEEDINGS: 'apigest_feedings_v3',
@@ -127,6 +153,7 @@
         const get = (key, def) => { try { return JSON.parse(localStorage.getItem(key)) || def; } catch { return def; } };
         const set = (key, val) => { try { localStorage.setItem(key, JSON.stringify(val)); } catch(e) { console.error(e); } };
 
+        // Managers
         const createListManager = (key, defaultList = []) => ({
             getAll: () => get(key, defaultList),
             add: (item) => { const l = get(key, defaultList); l.push(item); set(key, l); },
@@ -134,13 +161,15 @@
             delete: (id) => set(key, get(key, defaultList).filter(x=>x.id!==id))
         });
 
-        // Données par défaut (pour que l'app ne soit pas vide au premier lancement)
+        // Données Initiales
+        const SAMPLE_PROFILE = { companyName: 'Le Rucher Du Vieux Juigné', status: 'Micro BA' };
         const SAMPLE_APIARIES = [{id:'demo_api', name:'Rucher Démo', location:'Jardin'}];
         const SAMPLE_HIVES = [{id:'demo_hive', name:'Ruche 01', apiaryId:'demo_api'}];
 
+        // Objet Storage Global
         const Storage = {
             generateId,
-            getProfile: () => get(STORAGE_KEYS.PROFILE, { companyName: 'Le Rucher Du Vieux Juigné', status: 'Micro BA' }),
+            getProfile: () => get(STORAGE_KEYS.PROFILE, SAMPLE_PROFILE),
             saveProfile: (p) => set(STORAGE_KEYS.PROFILE, p),
             getApiaries: () => get(STORAGE_KEYS.APIARIES, SAMPLE_APIARIES),
             saveApiary: (a) => { const l = get(STORAGE_KEYS.APIARIES, SAMPLE_APIARIES); const i = l.findIndex(x=>x.id===a.id); if(i>=0) l[i]=a; else l.push(a); set(STORAGE_KEYS.APIARIES, l); },
@@ -182,101 +211,51 @@
             }
         };
 
-        // --- 2. PDF SERVICE (Intégré) ---
+        // --- 3. PDF SERVICE ---
         const PDFService = {
             generateDoc: (title, start, end) => {
                 const { jsPDF } = window.jspdf;
                 const doc = new jsPDF();
                 const profile = Storage.getProfile();
-                
-                doc.setFontSize(18);
-                doc.setTextColor(42, 51, 30);
+                doc.setFontSize(18); doc.setTextColor(42, 51, 30);
                 doc.text(profile.companyName || "Apiculture", 14, 20);
-                
-                doc.setFontSize(10);
-                doc.setTextColor(100);
+                doc.setFontSize(10); doc.setTextColor(100);
                 let y = 26;
                 doc.text(profile.address || '', 14, y);
                 if(profile.address) y+=6;
                 doc.text(`NAPI: ${profile.napi || '-'} | SIRET: ${profile.siret || '-'}`, 14, y);
                 y+=6;
-                
-                doc.setDrawColor(244, 206, 94);
-                doc.line(14, y+4, 196, y+4);
-                
-                doc.setFontSize(14);
-                doc.setTextColor(0);
-                const startStr = new Date(start).toLocaleDateString('fr-FR');
-                const endStr = new Date(end).toLocaleDateString('fr-FR');
-                doc.text(`${title} (${startStr} - ${endStr})`, 14, y+14);
-                
+                doc.setDrawColor(244, 206, 94); doc.line(14, y+4, 196, y+4);
+                doc.setFontSize(14); doc.setTextColor(0);
+                doc.text(`${title} (${new Date(start).toLocaleDateString()} - ${new Date(end).toLocaleDateString()})`, 14, y+14);
                 return {doc, y: y+24};
             },
+            filter: (arr, s, e) => arr.filter(i => i.date >= s && i.date <= e),
             
             generateBreedingRegisterPDF: (s, e) => {
                 const {doc, y} = PDFService.generateDoc("Registre d'Élevage", s, e);
-                const filter = (arr) => arr.filter(i => i.date >= s && i.date <= e);
-                
-                doc.setFontSize(12); doc.text("1. Traitements", 14, y);
-                doc.autoTable({
-                    startY: y+4,
-                    head: [['Date', 'Médicament', 'N° Lot', 'Qté']],
-                    body: filter(Storage.interventions.getAll()).map(i => [new Date(i.date).toLocaleDateString(), i.drugName, i.batchNumber, i.quantity]),
-                    theme:'grid', headStyles:{fillColor:[220, 38, 38]}
-                });
-                
-                let finalY = doc.lastAutoTable.finalY + 10;
-                doc.text("2. Mouvements", 14, finalY);
-                doc.autoTable({
-                    startY: finalY+4,
-                    head: [['Date', 'Type', 'Détail', 'Qté']],
-                    body: filter(Storage.movements.getAll()).map(m => [new Date(m.date).toLocaleDateString(), m.type, m.description, m.quantity]),
-                    theme:'grid', headStyles:{fillColor:[37, 99, 235]}
-                });
-                
+                const interventions = PDFService.filter(Storage.interventions.getAll(), s, e);
+                doc.setFontSize(12); doc.text("Traitements", 14, y);
+                doc.autoTable({ startY: y+4, head: [['Date', 'Médicament', 'Lot', 'Qté']], body: interventions.map(i => [i.date, i.drugName, i.batchNumber, i.quantity]), theme:'grid', headStyles:{fillColor:[220, 38, 38]} });
                 doc.save('registre_elevage.pdf');
             },
-            
             generateHoneyTraceabilityPDF: (s, e) => {
                 const {doc, y} = PDFService.generateDoc("Cahier de Miellerie", s, e);
-                const filter = (arr) => arr.filter(i => i.date >= s && i.date <= e);
-                
-                doc.setFontSize(12); doc.text("1. Récoltes", 14, y);
-                doc.autoTable({
-                    startY: y+4,
-                    head: [['Date', 'Miel', 'Poids', 'Lot Vrac']],
-                    body: filter(Storage.harvests.getAll()).map(h => [new Date(h.date).toLocaleDateString(), h.honeyType, h.quantityKg + 'kg', h.batchId]),
-                    theme:'grid', headStyles:{fillColor:[217, 119, 6]}
-                });
-                
-                let finalY = doc.lastAutoTable.finalY + 10;
-                doc.text("2. Mises en Pot", 14, finalY);
-                doc.autoTable({
-                    startY: finalY+4,
-                    head: [['Date', 'Lot Final', 'Qté x Format']],
-                    body: filter(Storage.packaging.getAll()).map(p => [new Date(p.date).toLocaleDateString(), p.finalBatchNumber, `${p.quantityPots} x ${p.potSize}`]),
-                    theme:'grid', headStyles:{fillColor:[217, 119, 6]}
-                });
+                const harvests = PDFService.filter(Storage.harvests.getAll(), s, e);
+                doc.setFontSize(12); doc.text("Récoltes", 14, y);
+                doc.autoTable({ startY: y+4, head: [['Date', 'Miel', 'Kg', 'Lot']], body: harvests.map(h => [h.date, h.honeyType, h.quantityKg, h.batchId]), theme:'grid', headStyles:{fillColor:[217, 119, 6]} });
                 doc.save('miellerie.pdf');
             },
-
             generateSalesPDF: (s, e) => {
-                const {doc, y} = PDFService.generateDoc("Livre de Recettes", s, e);
-                const sales = Storage.sales.getAll().filter(i => i.date >= s && i.date <= e).sort((a,b)=>new Date(a.date)-new Date(b.date));
-                
-                doc.autoTable({ 
-                    startY: y, 
-                    head: [['Date', 'Client', 'Produit', 'Qté', 'Total']], 
-                    body: sales.map(x => [new Date(x.date).toLocaleDateString(), x.buyerName, x.productName || x.finalBatchNumber, x.quantitySold, x.totalPrice.toFixed(2) + '€']), 
-                    theme:'grid', 
-                    headStyles:{fillColor:[22, 163, 74]},
-                    foot: [['', '', '', 'TOTAL', sales.reduce((a,b)=>a+(b.totalPrice||0),0).toFixed(2)+'€']]
-                });
+                const {doc, y} = PDFService.generateDoc("Ventes", s, e);
+                const sales = PDFService.filter(Storage.sales.getAll(), s, e);
+                doc.autoTable({ startY: y, head: [['Date', 'Client', 'Produit', 'Total']], body: sales.map(sa => [sa.date, sa.buyerName, sa.productName, sa.totalPrice+'€']), theme:'grid', headStyles:{fillColor:[22, 163, 74]} });
                 doc.save('ventes.pdf');
             }
         };
 
-        // --- 3. COMPOSANTS PARTAGÉS ---
+        // --- 4. COMPOSANTS UI ---
+        
         const HiveIcon = ({ size = 24, className = "" }) => (
             <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
                 <rect x="3" y="3" width="18" height="4" rx="1" />
@@ -287,429 +266,228 @@
             </svg>
         );
 
-        // --- 4. MODULES FONCTIONNELS (FUSIONNÉS) ---
+        const ConfirmModal = ({ isOpen, title, message, onConfirm, onCancel }) => {
+            if (!isOpen) return null;
+            return (
+                <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4">
+                    <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full p-6">
+                        <h3 className="text-xl font-bold text-red-600 mb-4">{title}</h3>
+                        <p className="text-gray-600 mb-6">{message}</p>
+                        <div className="flex gap-3 justify-end">
+                            <button onClick={onCancel} className="px-4 py-2 bg-gray-100 rounded-lg">Annuler</button>
+                            <button onClick={onConfirm} className="px-4 py-2 bg-red-600 text-white rounded-lg">Confirmer</button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
 
-        // GESTION DES CLIENTS
+        // --- 5. COMPOSANTS METIERS (Simplifiés pour éviter les erreurs de syntaxe TS) ---
+
         const ClientManager = () => {
             const [clients, setClients] = useState([]);
-            const [sales, setSales] = useState([]);
             const [formData, setFormData] = useState({ name: '', phone: '', email: '', address: '' });
             const [editingId, setEditingId] = useState(null);
-            const [searchTerm, setSearchTerm] = useState('');
+            
+            useEffect(() => refresh(), []);
+            const refresh = () => setClients(Storage.clients.getAll());
 
-            useEffect(() => refreshData(), []);
-            const refreshData = () => { setClients(Storage.clients.getAll()); setSales(Storage.sales.getAll()); };
-            
-            const handleSaveClient = () => {
-                if (!formData.name) return;
+            const save = () => {
+                if(!formData.name) return;
                 const id = editingId || Storage.generateId();
-                if(editingId) Storage.clients.update({ ...formData, id }); else Storage.clients.add({ ...formData, id });
-                setFormData({ name: '', phone: '', email: '', address: '' }); setEditingId(null); refreshData();
+                if(editingId) Storage.clients.update({...formData, id});
+                else Storage.clients.add({...formData, id});
+                setFormData({ name: '', phone: '', email: '', address: '' }); setEditingId(null); refresh();
             };
-            
-            const sortedClients = clients.map(c => ({
-                ...c, 
-                totalSpent: sales.filter(s => s.clientId === c.id || s.buyerName === c.name).reduce((sum, s) => sum + (s.totalPrice || 0), 0)
-            })).sort((a,b) => b.totalSpent - a.totalSpent).filter(c => c.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
             return (
                 <div className="space-y-6">
-                    <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-6 rounded-xl text-white shadow-md">
-                        <h2 className="text-2xl font-bold flex items-center gap-2"><Users /> Gestion des Clients</h2>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 md:col-span-1 h-fit sticky top-4">
-                            <h3 className="font-bold text-gray-800 mb-4">{editingId ? "Modifier" : "Nouveau"}</h3>
-                            <input type="text" placeholder="Nom *" className="w-full border p-2 rounded mb-2" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})}/>
-                            <input type="text" placeholder="Tel" className="w-full border p-2 rounded mb-2" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})}/>
-                            <input type="text" placeholder="Email" className="w-full border p-2 rounded mb-2" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})}/>
-                            <button onClick={handleSaveClient} className="w-full bg-blue-600 text-white p-2 rounded font-bold">Enregistrer</button>
+                    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                        <h2 className="text-xl font-bold mb-4">Clients</h2>
+                        <div className="flex flex-col gap-2 mb-4">
+                            <input placeholder="Nom" className="border p-2 rounded" value={formData.name} onChange={e=>setFormData({...formData, name:e.target.value})} />
+                            <input placeholder="Tel" className="border p-2 rounded" value={formData.phone} onChange={e=>setFormData({...formData, phone:e.target.value})} />
+                            <button onClick={save} className="bg-blue-600 text-white p-2 rounded font-bold">Enregistrer</button>
                         </div>
-                        <div className="bg-white p-6 rounded-xl shadow-sm md:col-span-2">
-                            <input type="text" placeholder="Rechercher..." className="w-full border p-2 rounded mb-4" value={searchTerm} onChange={e => setSearchTerm(e.target.value)}/>
-                            <div className="space-y-2 max-h-[400px] overflow-y-auto">
-                                {sortedClients.map(client => (
-                                    <div key={client.id} className="flex justify-between p-3 border rounded items-center bg-gray-50">
-                                        <div>
-                                            <div className="font-bold">{client.name}</div>
-                                            <div className="text-xs text-gray-500">{client.phone} | Achat: {client.totalSpent.toFixed(2)}€</div>
-                                        </div>
-                                        <div className="flex gap-2">
-                                            <button onClick={()=>{setEditingId(client.id); setFormData(client);}} className="text-blue-500"><Edit2 size={16}/></button>
-                                            <button onClick={()=>{if(confirm('Supprimer?')) {Storage.clients.delete(client.id); refreshData();}}} className="text-red-500"><Trash2 size={16}/></button>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
+                        <div className="space-y-2">
+                            {clients.map(c => (
+                                <div key={c.id} className="p-3 border rounded flex justify-between bg-gray-50">
+                                    <span>{c.name}</span>
+                                    <button onClick={()=>{Storage.clients.delete(c.id); refresh();}}><Trash2 size={16} className="text-red-500"/></button>
+                                </div>
+                            ))}
                         </div>
                     </div>
                 </div>
             );
         };
 
-        // GESTION DES DEPENSES
         const Expenses = () => {
             const [expenses, setExpenses] = useState([]);
-            const [newExpense, setNewExpense] = useState({ date: new Date().toISOString().split('T')[0], store: '', description: '', category: 'MATERIEL', amount: '' });
-            useEffect(() => setExpenses(Storage.expenses.getAll().sort((a,b)=>new Date(b.date)-new Date(a.date))), []);
+            const [newExp, setNewExp] = useState({date: new Date().toISOString().split('T')[0], description:'', amount:0, category:'MATERIEL'});
             
-            const handleAdd = () => {
-                if(!newExpense.amount) return;
-                Storage.expenses.add({ ...newExpense, id: Storage.generateId(), amount: parseFloat(newExpense.amount) });
-                setNewExpense({ ...newExpense, description: '', amount: '' });
-                setExpenses(Storage.expenses.getAll().sort((a,b)=>new Date(b.date)-new Date(a.date)));
+            useEffect(() => refresh(), []);
+            const refresh = () => setExpenses(Storage.expenses.getAll());
+
+            const add = () => {
+                if(!newExp.description || !newExp.amount) return;
+                Storage.expenses.add({...newExp, id:Storage.generateId()});
+                refresh();
             };
 
             return (
                 <div className="space-y-6">
-                    <div className="bg-gradient-to-r from-red-600 to-red-500 p-6 rounded-xl text-white shadow-md">
-                        <h2 className="text-2xl font-bold flex items-center gap-2"><Wallet /> Dépenses</h2>
-                        <div className="mt-2 text-3xl font-bold">{expenses.reduce((a,b)=>a+b.amount,0).toFixed(2)} €</div>
-                    </div>
-                    <div className="bg-white p-6 rounded-xl border border-gray-100">
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
-                            <input type="date" className="border p-2 rounded" value={newExpense.date} onChange={e=>setNewExpense({...newExpense, date: e.target.value})}/>
-                            <input type="text" placeholder="Magasin" className="border p-2 rounded" value={newExpense.store} onChange={e=>setNewExpense({...newExpense, store: e.target.value})}/>
-                            <input type="text" placeholder="Article" className="border p-2 rounded" value={newExpense.description} onChange={e=>setNewExpense({...newExpense, description: e.target.value})}/>
-                            <input type="number" placeholder="Montant" className="border p-2 rounded" value={newExpense.amount} onChange={e=>setNewExpense({...newExpense, amount: e.target.value})}/>
+                    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                        <h2 className="text-xl font-bold mb-4">Dépenses</h2>
+                        <div className="flex gap-2 mb-4">
+                            <input type="text" placeholder="Description" className="border p-2 rounded flex-1" value={newExp.description} onChange={e=>setNewExp({...newExp, description:e.target.value})} />
+                            <input type="number" placeholder="Montant" className="border p-2 rounded w-24" value={newExp.amount || ''} onChange={e=>setNewExp({...newExp, amount:parseFloat(e.target.value)})} />
+                            <button onClick={add} className="bg-red-600 text-white px-4 rounded font-bold">+</button>
                         </div>
-                        <button onClick={handleAdd} className="mt-2 w-full bg-red-600 text-white p-2 rounded font-bold">Ajouter Dépense</button>
-                    </div>
-                    <div className="space-y-2 max-h-[400px] overflow-y-auto">
-                        {expenses.map(exp => (
-                            <div key={exp.id} className="flex justify-between p-3 bg-white border rounded items-center">
-                                <div><div className="font-bold">{exp.store}</div><div className="text-xs text-gray-500">{exp.description} ({new Date(exp.date).toLocaleDateString()})</div></div>
-                                <div className="font-bold text-red-600">-{exp.amount.toFixed(2)}€</div>
-                                <button onClick={()=>{Storage.expenses.delete(exp.id); setExpenses(Storage.expenses.getAll().sort((a,b)=>new Date(b.date)-new Date(a.date)));}} className="ml-2 text-gray-300 hover:text-red-500"><Trash2 size={16}/></button>
-                            </div>
-                        ))}
+                        <div className="space-y-2">
+                            {expenses.map(e => (
+                                <div key={e.id} className="p-3 border rounded flex justify-between">
+                                    <span>{e.description}</span>
+                                    <span className="font-bold text-red-600">-{e.amount}€</span>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 </div>
             );
         };
 
-        // GESTION DE L'ELEVAGE (Ruchers, Soins, Mouvements)
         const BreedingRegister = () => {
             const [activeTab, setActiveTab] = useState('APIARY');
             const [apiaries, setApiaries] = useState([]);
             const [hives, setHives] = useState([]);
             const [interventions, setInterventions] = useState([]);
-            const [feedings, setFeedings] = useState([]);
-            const [movements, setMovements] = useState([]);
             
-            const [newApiary, setNewApiary] = useState({name:'', location:''});
             const [newInt, setNewInt] = useState({date: new Date().toISOString().split('T')[0], drugName: '', batchNumber: '', quantity: '', apiaryId: ''});
-            const [newFeeding, setNewFeeding] = useState({date: new Date().toISOString().split('T')[0], foodType:'', quantity:'', apiaryId:''});
-            const [newMov, setNewMov] = useState({date: new Date().toISOString().split('T')[0], type:'Transhumance', originId:'', destId:'', quantity:1});
 
-            useEffect(() => { refreshData(); }, []);
-            const refreshData = () => {
-                setApiaries(Storage.getApiaries()); 
-                setHives(Storage.hives.getAll()); 
+            useEffect(() => refresh(), []);
+            const refresh = () => {
+                setApiaries(Storage.getApiaries());
+                setHives(Storage.hives.getAll());
                 setInterventions(Storage.interventions.getAll());
-                setFeedings(Storage.feedings.getAll());
-                setMovements(Storage.movements.getAll());
             };
 
             return (
                 <div className="space-y-6">
-                    <div className="flex gap-2 mb-4 overflow-x-auto no-scrollbar">
-                        {[{id:'APIARY',label:'Ruchers',icon:MapPin}, {id:'SANITARY',label:'Soins',icon:Syringe}, {id:'FEEDING',label:'Nourrissement',icon:Utensils}, {id:'MOVEMENTS',label:'Mouvements',icon:Truck}].map(t => (
-                            <button key={t.id} onClick={()=>setActiveTab(t.id)} className={`flex items-center gap-2 px-4 py-2 rounded-full font-bold border whitespace-nowrap ${activeTab===t.id?'bg-honey-600 text-white':'bg-white'}`}>
-                                <t.icon size={16}/> {t.label}
-                            </button>
+                    <div className="flex gap-2 overflow-x-auto pb-2">
+                        {['APIARY','SANITARY'].map(t => (
+                            <button key={t} onClick={()=>setActiveTab(t)} className={`px-4 py-2 rounded-full font-bold border ${activeTab===t?'bg-honey-600 text-white':'bg-white'}`}>{t==='APIARY'?'Ruchers':'Soins'}</button>
                         ))}
                     </div>
-                    
+
                     {activeTab === 'APIARY' && (
                         <div>
-                             <div className="bg-white p-4 rounded-xl border mb-4 flex gap-2">
-                                <input placeholder="Nom Rucher" className="border p-2 rounded flex-1" value={newApiary.name} onChange={e=>setNewApiary({...newApiary,name:e.target.value})}/>
-                                <button onClick={()=>{ if(newApiary.name){Storage.saveApiary({...newApiary,id:Storage.generateId()}); setNewApiary({name:'',location:''}); refreshData();} }} className="bg-honey-500 text-white px-4 rounded"><Plus/></button>
-                             </div>
-                             {apiaries.map(apiary => (
-                                <div key={apiary.id} className="bg-white border rounded-xl p-4 mb-2">
-                                    <div className="flex justify-between">
-                                        <h3 className="font-bold text-lg">{apiary.name}</h3>
-                                        <button onClick={()=>{ if(confirm('Supprimer?')) {Storage.deleteApiary(apiary.id); refreshData();} }}><Trash2 size={16} className="text-gray-300"/></button>
-                                    </div>
-                                    <div className="flex gap-2 mt-2 items-center">
-                                        <input placeholder="Ajouter ruche..." className="border p-1 rounded text-sm" id={`hive_${apiary.id}`}/>
-                                        <button onClick={()=>{
-                                            const name = document.getElementById(`hive_${apiary.id}`).value;
-                                            if(name) { Storage.hives.add({id:Storage.generateId(), name, apiaryId:apiary.id}); refreshData(); document.getElementById(`hive_${apiary.id}`).value='';}
-                                        }} className="bg-blue-100 text-blue-600 px-2 rounded text-sm font-bold">+</button>
-                                    </div>
-                                    <div className="flex flex-wrap gap-2 mt-3">
-                                        {hives.filter(h=>h.apiaryId===apiary.id).map(hive => (
-                                            <span key={hive.id} className="px-2 py-1 bg-honey-50 border border-honey-100 rounded text-xs font-bold text-honey-700 flex items-center gap-1">
-                                                <HiveIcon size={12}/> {hive.name}
-                                                <button onClick={()=>{Storage.hives.delete(hive.id); refreshData();}} className="ml-1 text-red-300">x</button>
-                                            </span>
+                            <button onClick={()=>{const n=prompt('Nom du rucher?'); if(n) {Storage.saveApiary({id:Storage.generateId(), name:n, location:''}); refresh();}}} className="bg-honey-500 text-white px-4 py-2 rounded mb-4 font-bold">+ Nouveau Rucher</button>
+                            {apiaries.map(a => (
+                                <div key={a.id} className="bg-white p-4 rounded border mb-2">
+                                    <div className="font-bold text-lg">{a.name}</div>
+                                    <div className="flex flex-wrap gap-2 mt-2">
+                                        {hives.filter(h=>h.apiaryId===a.id).map(h => (
+                                            <span key={h.id} className="px-2 py-1 bg-honey-50 border rounded text-xs flex items-center gap-1"><HiveIcon size={12}/> {h.name}</span>
                                         ))}
+                                        <button onClick={()=>{Storage.hives.add({id:Storage.generateId(), name:'Ruche '+(hives.length+1), apiaryId:a.id}); refresh();}} className="px-2 py-1 bg-blue-100 rounded text-xs font-bold text-blue-600">+</button>
                                     </div>
                                 </div>
                             ))}
                         </div>
                     )}
-                    
-                    {activeTab === 'SANITARY' && (
-                        <div>
-                             <div className="bg-white p-4 rounded-xl border mb-4 shadow-sm">
-                                 <h3 className="font-bold mb-2">Nouveau Traitement</h3>
-                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                                    <input type="date" className="border p-2 rounded" value={newInt.date} onChange={e=>setNewInt({...newInt, date:e.target.value})}/>
-                                    <select className="border p-2 rounded" value={newInt.apiaryId} onChange={e=>setNewInt({...newInt, apiaryId:e.target.value})}>
-                                        <option value="">Choisir Rucher...</option>
-                                        {apiaries.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}
-                                    </select>
-                                    <input type="text" placeholder="Médicament (ex: Apivar)" className="border p-2 rounded" value={newInt.drugName} onChange={e=>setNewInt({...newInt, drugName:e.target.value})}/>
-                                    <input type="text" placeholder="N° Lot (OBLIGATOIRE)" className="border-2 border-red-200 p-2 rounded" value={newInt.batchNumber} onChange={e=>setNewInt({...newInt, batchNumber:e.target.value})}/>
-                                 </div>
-                                 <button onClick={()=>{ if(newInt.drugName && newInt.batchNumber){Storage.interventions.add({...newInt, id:Storage.generateId()}); refreshData();} }} className="w-full bg-red-600 text-white p-2 rounded font-bold mt-2">Enregistrer Traitement</button>
-                             </div>
-                             <div className="space-y-2">
-                                 {interventions.map(i => (
-                                     <div key={i.id} className="p-3 bg-white border rounded shadow-sm">
-                                         <div className="font-bold">{i.drugName} <span className="text-gray-400 font-normal">({apiaries.find(a=>a.id===i.apiaryId)?.name || '?'})</span></div>
-                                         <div className="text-xs text-gray-500">Lot: {i.batchNumber} | {new Date(i.date).toLocaleDateString()}</div>
-                                     </div>
-                                 ))}
-                             </div>
-                        </div>
-                    )}
 
-                    {activeTab === 'FEEDING' && (
-                        <div>
-                             <div className="bg-white p-4 rounded-xl border mb-4 shadow-sm">
-                                 <h3 className="font-bold mb-2">Nourrissement</h3>
-                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                                    <input type="date" className="border p-2 rounded" value={newFeeding.date} onChange={e=>setNewFeeding({...newFeeding, date:e.target.value})}/>
-                                    <select className="border p-2 rounded" value={newFeeding.apiaryId} onChange={e=>setNewFeeding({...newFeeding, apiaryId:e.target.value})}>
-                                        <option value="">Choisir Rucher...</option>
-                                        {apiaries.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}
-                                    </select>
-                                    <input type="text" placeholder="Type (Sirop, Candi...)" className="border p-2 rounded" value={newFeeding.foodType} onChange={e=>setNewFeeding({...newFeeding, foodType:e.target.value})}/>
-                                    <input type="text" placeholder="Quantité" className="border p-2 rounded" value={newFeeding.quantity} onChange={e=>setNewFeeding({...newFeeding, quantity:e.target.value})}/>
-                                 </div>
-                                 <button onClick={()=>{ if(newFeeding.foodType){Storage.feedings.add({...newFeeding, id:Storage.generateId()}); refreshData();} }} className="w-full bg-amber-500 text-white p-2 rounded font-bold mt-2">Enregistrer</button>
-                             </div>
-                             {feedings.map(f => (
-                                 <div key={f.id} className="p-3 bg-white border rounded shadow-sm mb-2">
-                                     <div className="font-bold">{f.foodType} - {f.quantity}</div>
-                                     <div className="text-xs text-gray-500">{apiaries.find(a=>a.id===f.apiaryId)?.name} | {new Date(f.date).toLocaleDateString()}</div>
-                                 </div>
-                             ))}
+                    {activeTab === 'SANITARY' && (
+                        <div className="bg-white p-4 rounded border">
+                            <h3 className="font-bold mb-2">Nouveau Traitement</h3>
+                            <div className="grid grid-cols-2 gap-2 mb-2">
+                                <input type="text" placeholder="Médicament" className="border p-2 rounded" value={newInt.drugName} onChange={e=>setNewInt({...newInt, drugName:e.target.value})} />
+                                <input type="text" placeholder="Lot" className="border p-2 rounded" value={newInt.batchNumber} onChange={e=>setNewInt({...newInt, batchNumber:e.target.value})} />
+                            </div>
+                            <button onClick={()=>{if(newInt.drugName){Storage.interventions.add({...newInt, id:Storage.generateId()}); refresh();}}} className="w-full bg-red-600 text-white p-2 rounded font-bold mb-4">Enregistrer</button>
+                            {interventions.map(i => (
+                                <div key={i.id} className="p-2 border-b">
+                                    <div className="font-bold">{i.drugName} (Lot: {i.batchNumber})</div>
+                                    <div className="text-xs text-gray-500">{i.date}</div>
+                                </div>
+                            ))}
                         </div>
                     )}
                 </div>
             );
         };
 
-        // GESTION MIELLERIE & CAISSE (Fusionné et simplifié)
-        const HoneyTraceability = ({ initialTab }) => {
-            const [activeTab, setActiveTab] = useState(initialTab || 'POS');
+        const HoneyTraceability = () => {
             const [products, setProducts] = useState([]);
             const [cart, setCart] = useState([]);
-            const [packagings, setPackagings] = useState([]);
-            const [harvests, setHarvests] = useState([]);
-            const [animatingItems, setAnimatingItems] = useState([]);
-            const [newPackage, setNewPackage] = useState({date:new Date().toISOString().split('T')[0], finalBatchNumber:'', quantityPots:0, potSize:'500g', honeyType:''});
-            const [newHarvest, setNewHarvest] = useState({date:new Date().toISOString().split('T')[0], honeyType:'', quantityKg:0});
-
-            useEffect(() => { 
-                setProducts(Storage.products.getAll()); 
-                setPackagings(Storage.packaging.getAll());
-                setHarvests(Storage.harvests.getAll());
-                setActiveTab(initialTab || 'POS'); 
-            }, [initialTab]);
+            
+            useEffect(() => { setProducts(Storage.products.getAll()); }, []);
 
             const addToCart = (p) => {
-                const key = Date.now();
-                setAnimatingItems(prev => [...prev, {id: p.id, key}]);
-                setTimeout(() => setAnimatingItems(prev => prev.filter(i => i.key !== key)), 800);
                 setCart(prev => {
                     const ex = prev.find(x => x.product.id === p.id);
-                    if(ex) return prev.map(x => x.product.id === p.id ? {...x, quantity: x.quantity+1} : x);
-                    return [...prev, {product: p, quantity: 1}];
+                    if(ex) return prev.map(x => x.product.id === p.id ? {...x, qty: x.qty+1} : x);
+                    return [...prev, {product: p, qty: 1}];
                 });
             };
 
-            const handleCheckout = () => {
-                const total = cart.reduce((a,b)=>a+(b.quantity*b.product.price),0);
+            const checkout = () => {
                 cart.forEach(item => {
                     Storage.sales.add({
                         id: Storage.generateId(),
                         date: new Date().toISOString().split('T')[0],
                         productName: item.product.name,
-                        quantitySold: item.quantity,
-                        totalPrice: item.quantity * item.product.price,
-                        paymentMethod: 'ESPECES',
-                        finalBatchNumber: item.product.currentBatchId ? Storage.packaging.getAll().find(p=>p.id===item.product.currentBatchId)?.finalBatchNumber : 'VRAC'
+                        quantitySold: item.qty,
+                        totalPrice: item.qty * item.product.price
                     });
                 });
                 setCart([]);
-                alert(`Vente de ${total.toFixed(2)}€ enregistrée !`);
+                alert("Vente enregistrée !");
             };
 
             return (
-                <div className="h-full">
-                     <div className="flex gap-2 mb-6 overflow-x-auto pb-2 no-scrollbar">
-                        {[{id:'POS', label:'Caisse', icon:ShoppingCart}, {id:'PRODUCTS', label:'Produits', icon:Store}, {id:'PACKAGING', label:'Mise en pot', icon:Package}, {id:'HARVEST', label:'Récolte', icon:Archive}].map(t => (
-                            <button key={t.id} onClick={() => setActiveTab(t.id)} className={`flex items-center gap-2 px-5 py-2 rounded-full text-sm font-bold tracking-wide transition shadow-sm ${activeTab===t.id ? 'bg-rucher-yellow text-rucher-dark' : 'bg-white text-gray-500 border border-gray-200'}`}>
-                                <t.icon size={16}/> {t.label}
-                            </button>
-                        ))}
-                     </div>
-
-                     {activeTab === 'POS' && (
-                         <div className="flex flex-col md:flex-row gap-6 h-full">
-                             <div className="flex-1">
-                                 <h2 className="font-serif text-2xl mb-4 text-rucher-dark">Catalogue</h2>
-                                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                                     {products.map(p => (
-                                         <button key={p.id} onClick={() => addToCart(p)} className="relative bg-white p-4 rounded-lg shadow-sm border border-gray-100 hover:border-rucher-yellow hover:shadow-md transition text-left group overflow-visible select-none">
-                                             {animatingItems.filter(i => i.id === p.id).map(anim => (
-                                                <div key={anim.key} className="absolute inset-0 flex items-center justify-center pointer-events-none z-50 animate-fly-cart"><div className="text-4xl filter drop-shadow-lg transform -scale-x-100">🐝</div></div>
-                                             ))}
-                                             <div className="h-24 bg-rucher-bg rounded mb-3 flex items-center justify-center relative overflow-hidden">
-                                                 {p.imageUrl ? <img src={p.imageUrl} className="w-full h-full object-cover"/> : <Store size={32} className="text-rucher-green opacity-30"/>}
-                                                 <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition text-rucher-yellow"><Plus size={20}/></div>
-                                             </div>
-                                             <div className="font-bold text-rucher-dark truncate">{p.name}</div>
-                                             <div className="text-rucher-green font-bold mt-1">{p.price.toFixed(2)} €</div>
-                                             <div className="text-xs text-gray-400">{p.potSize}</div>
-                                         </button>
-                                     ))}
-                                     {products.length === 0 && <div className="col-span-full text-center py-10 text-gray-400 font-serif italic">Aucun produit. Allez dans "Produits" pour en créer.</div>}
-                                 </div>
-                             </div>
-                             
-                             <div className="w-full md:w-80 bg-white shadow-xl border border-gray-100 rounded-xl p-5 flex flex-col h-fit sticky top-4">
-                                 <h3 className="font-serif text-xl border-b border-rucher-yellow pb-3 mb-3 flex justify-between items-center text-rucher-dark">
-                                     <span>Panier</span>
-                                     <span className="bg-rucher-yellow text-rucher-dark px-2 py-1 rounded-full text-xs font-bold">{cart.reduce((a,b)=>a+b.quantity,0)}</span>
-                                 </h3>
-                                 <div className="flex-1 overflow-y-auto space-y-3 min-h-[200px]">
-                                     {cart.map((item, idx) => (
-                                         <div key={idx} className="flex justify-between text-sm items-center border-b border-dashed border-gray-100 pb-2">
-                                             <div><div className="font-bold text-gray-800">{item.product.name}</div><div className="text-xs text-gray-500">x{item.quantity}</div></div>
-                                             <div className="font-bold text-rucher-green">{(item.quantity * item.product.price).toFixed(2)}€</div>
-                                         </div>
-                                     ))}
-                                     {cart.length === 0 && <div className="text-gray-400 italic text-center mt-10">Panier vide</div>}
-                                 </div>
-                                 <div className="border-t border-gray-200 pt-4 mt-2">
-                                     <div className="flex justify-between font-serif text-2xl mb-4 text-rucher-dark"><span>Total</span><span>{cart.reduce((a,b)=>a+(b.quantity*b.product.price),0).toFixed(2)} €</span></div>
-                                     <button onClick={handleCheckout} disabled={cart.length===0} className="w-full bg-rucher-green text-white py-3 rounded shadow-md font-bold hover:bg-rucher-dark transition disabled:opacity-50">Encaisser</button>
-                                 </div>
-                             </div>
-                         </div>
-                     )}
-                     
-                     {activeTab === 'PRODUCTS' && (
-                         <div className="bg-white p-6 rounded-xl shadow-sm">
-                             <h2 className="font-serif text-2xl mb-4">Produits</h2>
-                             <div className="flex flex-col gap-2 mb-4">
-                                 <input id="newProdName" placeholder="Nom (ex: Miel Acacia)" className="border p-2 rounded"/>
-                                 <div className="flex gap-2">
-                                    <input id="newProdPrice" placeholder="Prix" type="number" className="border p-2 rounded w-24"/>
-                                    <input type="file" id="prodImg" className="hidden" onChange={(e)=>{
-                                        if(e.target.files[0]) compressImage(e.target.files[0]).then(res => document.getElementById('preview').src = res);
-                                    }}/>
-                                    <label htmlFor="prodImg" className="border p-2 rounded cursor-pointer flex items-center gap-2"><ImagePlus size={18}/> Photo</label>
-                                    <img id="preview" className="h-10 w-10 object-cover rounded bg-gray-100"/>
-                                 </div>
-                                 <button onClick={() => {
-                                     const name = document.getElementById('newProdName').value;
-                                     const price = parseFloat(document.getElementById('newProdPrice').value);
-                                     const img = document.getElementById('preview').src;
-                                     if(name && price) {
-                                         Storage.products.add({id:Storage.generateId(), name, price, potSize:'500g', imageUrl: img.startsWith('data') ? img : null});
-                                         setProducts(Storage.products.getAll());
-                                     }
-                                 }} className="bg-rucher-yellow px-4 py-2 rounded font-bold text-rucher-dark">Ajouter</button>
-                             </div>
-                             <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                                 {products.map(p => (
-                                    <div key={p.id} className="p-2 border rounded flex gap-2 items-center">
-                                        <div className="h-12 w-12 bg-gray-100 rounded overflow-hidden">
-                                            {p.imageUrl && <img src={p.imageUrl} className="h-full w-full object-cover"/>}
-                                        </div>
-                                        <div>
-                                            <div className="font-bold">{p.name}</div>
-                                            <div className="text-xs">{p.price}€</div>
-                                        </div>
-                                        <button onClick={()=>{Storage.products.delete(p.id); setProducts(Storage.products.getAll());}} className="ml-auto text-red-400"><Trash2/></button>
-                                    </div>
-                                ))}
-                             </div>
-                         </div>
-                     )}
-
-                     {activeTab === 'PACKAGING' && (
-                        <div className="bg-white p-6 rounded-xl shadow-sm">
-                            <h2 className="font-serif text-2xl mb-4">Mise en Pot (Lots)</h2>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 bg-amber-50 p-4 rounded-xl">
-                                <input className="border p-2 rounded" placeholder="Numéro de Lot (ex: 2025-01-AC)" value={newPackage.finalBatchNumber} onChange={e=>setNewPackage({...newPackage, finalBatchNumber:e.target.value})}/>
-                                <input className="border p-2 rounded" type="number" placeholder="Quantité de pots" value={newPackage.quantityPots} onChange={e=>setNewPackage({...newPackage, quantityPots:e.target.value})}/>
-                                <select className="border p-2 rounded bg-white" value={newPackage.potSize} onChange={e=>setNewPackage({...newPackage, potSize:e.target.value})}>
-                                    {['250g','500g','1kg'].map(s=><option key={s} value={s}>{s}</option>)}
-                                </select>
-                                <button onClick={()=>{
-                                    if(newPackage.finalBatchNumber && newPackage.quantityPots) {
-                                        Storage.packaging.add({...newPackage, id:Storage.generateId()});
-                                        setPackagings(Storage.packaging.getAll());
-                                        alert('Lot créé');
-                                    }
-                                }} className="w-full bg-amber-500 text-white p-2 rounded font-bold md:col-span-2">Enregistrer</button>
-                            </div>
-                            <div className="space-y-2">
-                                {packagings.map(p => <div key={p.id} className="text-sm p-3 bg-white border rounded flex justify-between"><span>Lot: <b>{p.finalBatchNumber}</b></span><span>{p.quantityPots} x {p.potSize}</span></div>)}
-                            </div>
+                <div className="flex flex-col md:flex-row gap-6">
+                    <div className="flex-1">
+                        <h2 className="text-xl font-bold mb-4">Caisse</h2>
+                        <div className="grid grid-cols-2 gap-4">
+                            {products.map(p => (
+                                <button key={p.id} onClick={()=>addToCart(p)} className="p-4 border rounded bg-white text-left hover:shadow-md">
+                                    <div className="font-bold">{p.name}</div>
+                                    <div className="text-green-600 font-bold">{p.price} €</div>
+                                </button>
+                            ))}
+                            <button onClick={()=>{
+                                const n = prompt('Nom du produit?'); 
+                                const pr = prompt('Prix?');
+                                if(n && pr) { Storage.products.add({id:Storage.generateId(), name:n, price:parseFloat(pr), potSize:'500g'}); setProducts(Storage.products.getAll()); }
+                            }} className="p-4 border rounded bg-gray-50 text-center font-bold text-gray-500">+ Ajouter Produit</button>
                         </div>
-                     )}
-
-                     {activeTab === 'HARVEST' && (
-                         <div className="bg-white p-6 rounded-xl shadow-sm">
-                             <h2 className="font-serif text-2xl mb-4">Récoltes (Vrac)</h2>
-                             <div className="flex gap-2 mb-4">
-                                 <input className="border p-2 rounded flex-1" placeholder="Type Miel (ex: Acacia)" value={newHarvest.honeyType} onChange={e=>setNewHarvest({...newHarvest, honeyType:e.target.value})}/>
-                                 <input className="border p-2 rounded w-24" type="number" placeholder="Kg" value={newHarvest.quantityKg} onChange={e=>setNewHarvest({...newHarvest, quantityKg:e.target.value})}/>
-                                 <button onClick={()=>{
-                                     if(newHarvest.honeyType && newHarvest.quantityKg){
-                                         Storage.harvests.add({...newHarvest, id:Storage.generateId(), batchId:'VRAC-'+Date.now()});
-                                         setHarvests(Storage.harvests.getAll());
-                                     }
-                                 }} className="bg-amber-600 text-white px-4 rounded font-bold">Ajouter</button>
-                             </div>
-                             {harvests.map(h => (
-                                 <div key={h.id} className="p-3 border-b flex justify-between">
-                                     <span>{h.honeyType}</span>
-                                     <span className="font-bold">{h.quantityKg} kg</span>
-                                 </div>
-                             ))}
-                         </div>
-                     )}
+                    </div>
+                    <div className="w-full md:w-80 bg-white p-4 rounded shadow border h-fit">
+                        <h3 className="font-bold border-b pb-2 mb-2">Panier ({cart.reduce((a,b)=>a+b.qty,0)})</h3>
+                        {cart.map((it, idx) => (
+                            <div key={idx} className="flex justify-between text-sm mb-1">
+                                <span>{it.product.name} x{it.qty}</span>
+                                <span>{(it.product.price * it.qty).toFixed(2)}€</span>
+                            </div>
+                        ))}
+                        <div className="mt-4 pt-2 border-t font-bold text-xl text-right">
+                            {cart.reduce((a,b)=>a+(b.qty*b.product.price),0).toFixed(2)} €
+                        </div>
+                        <button onClick={checkout} disabled={cart.length===0} className="w-full bg-green-600 text-white p-3 rounded font-bold mt-4 disabled:opacity-50">Encaisser</button>
+                    </div>
                 </div>
             );
         };
 
-        // --- 5. APP PRINCIPALE ---
+        // --- 6. APP PRINCIPALE ---
         const App = () => {
             const [view, setView] = useState('DASHBOARD');
-            const [honeyTab, setHoneyTab] = useState('POS');
             const [profile, setProfile] = useState({});
-            const [dashboardData, setDashboardData] = useState({totalSalesYear:0, totalExpensesYear:0});
 
             useEffect(() => {
                 setProfile(Storage.getProfile());
-                const sales = Storage.sales.getAll();
-                const expenses = Storage.expenses.getAll();
-                const totalSales = sales.reduce((sum, s) => sum + (s.totalPrice || 0), 0);
-                const totalExp = expenses.reduce((sum, e) => sum + e.amount, 0);
-                setDashboardData({totalSalesYear: totalSales, totalExpensesYear: totalExp});
-            }, [view]);
+            }, []);
 
             const NavItem = ({id, label, icon: Icon}) => (
                 <button onClick={() => setView(id)} className={`flex flex-col md:flex-row items-center justify-center md:justify-start p-3 md:px-6 rounded-lg transition-all mb-1 ${view===id ? 'bg-rucher-yellow text-rucher-dark font-bold shadow-sm' : 'text-gray-400 hover:text-rucher-green hover:bg-rucher-bg'}`}>
@@ -725,11 +503,11 @@
                             <div className="w-24 h-24 rounded-full border-4 border-rucher-yellow flex items-center justify-center bg-white shadow-md mb-3">
                                 <span className="font-serif font-bold text-2xl text-rucher-dark">AG</span>
                             </div>
-                            <h1 className="font-serif text-lg font-bold text-rucher-dark text-center leading-tight">Le Rucher Du<br/>Vieux Juigné</h1>
+                            <h1 className="font-serif text-lg font-bold text-rucher-dark text-center leading-tight">{profile.companyName || 'ApiGest'}</h1>
                         </div>
                         <div className="flex justify-between md:flex-col md:gap-2 px-2 md:px-0">
                             <NavItem id="DASHBOARD" label="Accueil" icon={LayoutDashboard} />
-                            <NavItem id="BREEDING" label="Ruchers" icon={HiveIcon} />
+                            <NavItem id="BREEDING" label="Ruchers" icon={MapPin} />
                             <NavItem id="HONEY" label="Miellerie" icon={Store} />
                             <NavItem id="EXPENSES" label="Dépenses" icon={Wallet} />
                             <NavItem id="CLIENTS" label="Clients" icon={Users} />
@@ -748,29 +526,19 @@
                                 <div className="space-y-8 animate-in fade-in duration-500">
                                     <header className="text-center md:text-left">
                                         <h1 className="font-serif text-3xl md:text-4xl text-rucher-dark mb-2">Bienvenue</h1>
-                                        <p className="text-rucher-green font-light italic">{profile.companyName}</p>
+                                        <p className="text-rucher-green font-light italic">{profile.companyName || 'Mon Rucher'}</p>
                                     </header>
-
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                        <div onClick={() => { setView('HONEY'); setHoneyTab('POS'); }} className="bg-rucher-green text-white p-6 rounded-xl shadow-lg cursor-pointer transform hover:scale-105 transition flex flex-col items-center justify-center text-center relative overflow-hidden group">
-                                            <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition"></div>
+                                        <div onClick={()=>setView('HONEY')} className="bg-rucher-green text-white p-6 rounded-xl shadow-lg cursor-pointer flex flex-col items-center justify-center text-center">
                                             <ShoppingCart size={32} className="mb-2 text-rucher-yellow"/>
                                             <h3 className="font-serif text-2xl">Caisse Rapide</h3>
-                                        </div>
-                                        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center justify-center text-center">
-                                            <span className="text-rucher-green uppercase text-xs font-bold tracking-widest mb-2">Recettes</span>
-                                            <span className="font-serif text-4xl text-green-600">+{dashboardData.totalSalesYear.toFixed(0)}€</span>
-                                        </div>
-                                        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center justify-center text-center">
-                                            <span className="text-rucher-green uppercase text-xs font-bold tracking-widest mb-2">Dépenses</span>
-                                            <span className="font-serif text-4xl text-red-600">-{dashboardData.totalExpensesYear.toFixed(0)}€</span>
                                         </div>
                                     </div>
                                 </div>
                             )}
 
                             {view === 'BREEDING' && <BreedingRegister />}
-                            {view === 'HONEY' && <HoneyTraceability initialTab={honeyTab} />}
+                            {view === 'HONEY' && <HoneyTraceability />}
                             {view === 'EXPENSES' && <Expenses />}
                             {view === 'CLIENTS' && <ClientManager />}
                             
@@ -782,52 +550,35 @@
                                             <label className="block text-xs font-bold text-rucher-green uppercase mb-1">Nom Exploitation</label>
                                             <input type="text" className="w-full border p-3 rounded bg-rucher-bg text-rucher-dark font-serif" value={profile.companyName||''} onChange={e=>{const p={...profile, companyName:e.target.value}; setProfile(p); Storage.saveProfile(p);}} />
                                         </div>
-                                        <div>
-                                            <label className="block text-xs font-bold text-rucher-green uppercase mb-1">SIRET</label>
-                                            <input type="text" className="w-full border p-3 rounded bg-rucher-bg text-rucher-dark font-serif" value={profile.siret||''} onChange={e=>{const p={...profile, siret:e.target.value}; setProfile(p); Storage.saveProfile(p);}} />
-                                        </div>
-                                        <div className="pt-6 border-t mt-4">
-                                            <h3 className="font-bold mb-4">Export PDF & Données</h3>
-                                            <div className="grid grid-cols-2 gap-2 mb-4">
-                                                 <button onClick={() => PDFService.generateBreedingRegisterPDF('2024-01-01', '2025-12-31')} className="bg-red-50 text-red-700 border border-red-200 px-3 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-2">
-                                                     <FileText size={14}/> Registre Élevage
-                                                 </button>
-                                                 <button onClick={() => PDFService.generateHoneyTraceabilityPDF('2024-01-01', '2025-12-31')} className="bg-amber-50 text-amber-700 border border-amber-200 px-3 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-2">
-                                                     <FileText size={14}/> Cahier Miellerie
-                                                 </button>
-                                            </div>
-
-                                            <button onClick={() => {
-                                                const data = Storage.exportAllData();
-                                                const blob = new Blob([data], {type: 'application/json'});
-                                                const url = URL.createObjectURL(blob);
-                                                const a = document.createElement('a');
-                                                a.href = url;
-                                                a.download = `backup_apigest_${new Date().toISOString().split('T')[0]}.json`;
-                                                a.click();
-                                            }} className="w-full bg-gray-100 text-gray-600 py-3 rounded font-bold flex items-center justify-center gap-2 hover:bg-gray-200 transition mb-2">
-                                                <Download size={18}/> Sauvegarder mes données
-                                            </button>
-                                            
-                                            <label className="w-full bg-blue-50 text-blue-600 py-3 rounded font-bold flex items-center justify-center gap-2 hover:bg-blue-100 transition cursor-pointer">
-                                                <Upload size={18}/> Restaurer une sauvegarde
-                                                <input type="file" accept=".json" className="hidden" onChange={(e) => {
-                                                    const file = e.target.files[0];
-                                                    if(file) {
-                                                        const reader = new FileReader();
-                                                        reader.onload = (ev) => {
-                                                            if(Storage.importAllData(ev.target.result)) {
-                                                                alert('Restauration réussie !');
-                                                                window.location.reload();
-                                                            } else {
-                                                                alert('Fichier invalide');
-                                                            }
-                                                        };
-                                                        reader.readAsText(file);
-                                                    }
-                                                }}/>
-                                            </label>
-                                        </div>
+                                        <button onClick={() => {
+                                            const data = Storage.exportAllData();
+                                            const blob = new Blob([data], {type: 'application/json'});
+                                            const url = URL.createObjectURL(blob);
+                                            const a = document.createElement('a');
+                                            a.href = url;
+                                            a.download = `backup_apigest_${new Date().toISOString().split('T')[0]}.json`;
+                                            a.click();
+                                        }} className="w-full bg-gray-100 text-gray-600 py-3 rounded font-bold flex items-center justify-center gap-2 hover:bg-gray-200 transition">
+                                            <Download size={18}/> Sauvegarder mes données
+                                        </button>
+                                        <label className="w-full bg-blue-50 text-blue-600 py-3 rounded font-bold flex items-center justify-center gap-2 hover:bg-blue-100 transition cursor-pointer">
+                                            <Upload size={18}/> Restaurer une sauvegarde
+                                            <input type="file" accept=".json" className="hidden" onChange={(e) => {
+                                                const file = e.target.files[0];
+                                                if(file) {
+                                                    const reader = new FileReader();
+                                                    reader.onload = (ev) => {
+                                                        if(Storage.importAllData(ev.target.result)) {
+                                                            alert('Restauration réussie !');
+                                                            window.location.reload();
+                                                        } else {
+                                                            alert('Fichier invalide');
+                                                        }
+                                                    };
+                                                    reader.readAsText(file);
+                                                }
+                                            }}/>
+                                        </label>
                                     </div>
                                 </div>
                             )}
